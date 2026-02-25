@@ -1,4 +1,4 @@
-// Mission Control Hello World v0.2 🦞 Dark/Light Toggle
+// Mission Control v0.3 🦞 Blue Theme
 // Node HTTP server on port 3001
 
 const http = require('http');
@@ -16,12 +16,12 @@ const server = http.createServer((req, res) => {
       text-align: center;
       padding: 5rem;
       background: #000;
-      color: #ff6b35;
+      color: #3b82f6;
       transition: all 0.3s ease;
     }
     body.light {
       background: white;
-      color: #333;
+      color: #1d4ed8;
     }
     button {
       position: fixed;
@@ -32,13 +32,13 @@ const server = http.createServer((req, res) => {
       border: none;
       border-radius: 50%;
       cursor: pointer;
-      background: rgba(255,107,53,0.2);
-      color: #ff6b35;
+      background: rgba(59,130,246,0.2);
+      color: #3b82f6;
       backdrop-filter: blur(10px);
     }
     body.light button {
-      background: rgba(51,51,51,0.2);
-      color: #333;
+      background: rgba(29,78,216,0.2);
+      color: #1d4ed8;
     }
     a { color: inherit; }
   </style>
@@ -49,7 +49,7 @@ const server = http.createServer((req, res) => {
   <p>Port 3001 | Local: <a href="http://localhost:3001">localhost:3001</a></p>
   <p>Tailscale ready—access via your TS IP:3001</p>
   <hr>
-  <small>OpenClaw Dashboard v0.2 | Light/Dark Toggle ✓</small>
+  <small>OpenClaw Dashboard v0.3 | Blue Theme ✓</small>
   <script>
     function toggleTheme() {
       document.body.classList.toggle('light');
@@ -69,5 +69,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(3001, '0.0.0.0', () => {
-  console.log('Mission Control v0.2 live on http://0.0.0.0:3001 (Dark/Light toggle)');
+  console.log('Mission Control v0.3 live on http://0.0.0.0:3001 (Blue theme)');
 });
