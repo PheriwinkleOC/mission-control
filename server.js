@@ -1,5 +1,5 @@
-// Mission Control v0.6 🦞 Bugfix: Chevron functional + globals sync
-// Parent.open controls children & rotate, globals toggle .parent.open
+// Mission Control v0.7 🦞 Bugfixes: Chevrons, Event Handlers
+// Node HTTP server on port 3001
 
 const http = require('http');
 
@@ -11,7 +11,6 @@ const server = http.createServer((req, res) => {
 <head>
   <title>Mission Control 🦞</title>
   <style>
-    /* same root vars */
     :root {
       --bg-dark: #000;
       --bg-light: white;
@@ -87,6 +86,7 @@ const server = http.createServer((req, res) => {
       display: flex;
       align-items: center;
       gap: 0.75rem;
+      user-select: none;
     }
     .menu-item:hover { background: var(--bg-hover-dark); }
     body.light .menu-item:hover { background: var(--bg-hover-light); }
@@ -100,19 +100,22 @@ const server = http.createServer((req, res) => {
       transition: opacity 0.2s;
     }
     #sidebar.collapsed .label { opacity: 0; }
+    
+    /* Chevron logic */
     .parent .chevron {
       position: absolute;
-      left: 0.75rem;
+      left: 1rem;
       top: 50%;
       transform: translateY(-50%);
       font-size: 0.75rem;
       transition: transform 0.2s ease;
+      display: inline-block;
       pointer-events: none;
     }
-    .parent:not(.open) .chevron { content: '►'; }
-    .parent.open .chevron::after {
-      content: '▼';
+    .parent.open > .menu-item .chevron {
+      transform: translateY(-50%) rotate(90deg);
     }
+    
     .children {
       max-height: 0;
       overflow: hidden;
@@ -120,6 +123,7 @@ const server = http.createServer((req, res) => {
     }
     .parent.open > .children { max-height: 1000px; }
     .children .menu-item { padding-left: 5rem; }
+    
     #main {
       flex: 1;
       padding: 2rem;
@@ -157,44 +161,43 @@ const server = http.createServer((req, res) => {
       <button class="global-btn" onclick="collapseAll()" title="Collapse All">📁</button>
     </div>
     <ul id="menu-items">
-      <li class="menu-item active" data-panel="dashboard" data-icon="🚀" onclick="selectItem(this)">
+      <li class="menu-item active" data-panel="dashboard">
         <span class="icon">🚀</span>
         <span class="label">Dashboard</span>
       </li>
-      <li class="parent" data-panel="openclaw" data-icon="⚙️">
-        <div class="menu-item" onclick="selectItem(this); toggleOpen(this.closest('.parent'))">
+      <li class="parent" data-panel="openclaw">
+        <div class="menu-item">
           <span class="chevron">►</span>
           <span class="icon">⚙️</span>
           <span class="label">OpenClaw</span>
         </div>
         <ul class="children">
-          <li class="menu-item" data-panel="gateway" data-icon="🔌" onclick="selectItem(this)">
+          <li class="menu-item" data-panel="gateway">
             <span class="icon">🔌</span>
             <span class="label">Gateway</span>
           </li>
-          <li class="menu-item" data-panel="sessions" data-icon="📱" onclick="selectItem(this)">
+          <li class="menu-item" data-panel="sessions">
             <span class="icon">📱</span>
             <span class="label">Sessions</span>
           </li>
-          <li class="menu-item" data-panel="skills" data-icon="🛠️" onclick="selectItem(this)">
+          <li class="menu-item" data-panel="skills">
             <span class="icon">🛠️</span>
             <span class="label">Skills</span>
           </li>
         </ul>
       </li>
-      <!-- similar for Projects -->
-      <li class="menu-item" data-panel="nodes" data-icon="🖥️" onclick="selectItem(this)">
+      <li class="menu-item" data-panel="nodes">
         <span class="icon">🖥️</span>
         <span class="label">Nodes</span>
       </li>
-      <li class="parent" data-panel="projects" data-icon="📁">
-        <div class="menu-item" onclick="selectItem(this); toggleOpen(this.closest('.parent'))">
+      <li class="parent" data-panel="projects">
+        <div class="menu-item">
           <span class="chevron">►</span>
           <span class="icon">📁</span>
           <span class="label">Projects</span>
         </div>
         <ul class="children">
-          <li class="menu-item" data-panel="mc-docs" data-icon="📚" onclick="selectItem(this)">
+          <li class="menu-item" data-panel="mc-docs">
             <span class="icon">📚</span>
             <span class="label">Docs</span>
           </li>
@@ -202,44 +205,81 @@ const server = http.createServer((req, res) => {
       </li>
     </ul>
   </nav>
-  <!-- main panels same -->
   <main id="main">
     <section id="dashboard" class="panel active">
-      <h1>🚀 Mission Control v0.6</h1>
-      <p>Chevrons functional per-parent, globals sync rotate ✓</p>
+      <h1>🚀 Mission Control v0.7</h1>
+      <p>Bugfixes applied: Chevrons rotate correctly, no double triangles, and click events work consistently without double-firing.</p>
     </section>
-    <!-- abbreviate -->
+    <section id="openclaw" class="panel">
+      <h1>⚙️ OpenClaw Overview</h1>
+      <p>Select a child item for details.</p>
+    </section>
+    <section id="gateway" class="panel">
+      <h1>🔌 Gateway</h1>
+      <p>Status coming live.</p>
+    </section>
+    <section id="sessions" class="panel"><h1>📱 Sessions</h1><p>List/spawn.</p></section>
+    <section id="skills" class="panel"><h1>🛠️ Skills</h1><p>Browser.</p></section>
+    <section id="nodes" class="panel"><h1>🖥️ Nodes</h1><p>Control.</p></section>
+    <section id="projects" class="panel"><h1>📁 Projects</h1><p>Overview.</p></section>
+    <section id="mc-docs" class="panel"><h1>📚 Docs</h1><p>Coming.</p></section>
   </main>
   <script>
-    function toggleTheme() { /* same */ }
-    function toggleSidebar() { /* same */ }
-    function toggleOpen(parent) {
-      parent.classList.toggle('open');
+    function toggleTheme() {
+      document.body.classList.toggle('light');
+      const isLight = document.body.classList.contains('light');
+      localStorage.theme = isLight ? 'light' : 'dark';
+      document.querySelector('.theme-toggle').textContent = isLight ? '☀️' : '🌙';
     }
+    
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.toggle('collapsed');
+      const isCollapsed = sidebar.classList.contains('collapsed');
+      localStorage.sidebarCollapsed = isCollapsed;
+      document.querySelector('.menu-toggle').textContent = isCollapsed ? '→' : '←';
+    }
+    
     function expandAll() {
       document.querySelectorAll('.parent').forEach(p => p.classList.add('open'));
     }
+    
     function collapseAll() {
       document.querySelectorAll('.parent').forEach(p => p.classList.remove('open'));
     }
-    function selectItem(item) {
+
+    // Cleaned up click event delegation
+    document.addEventListener('click', (e) => {
+      // Find closest menu item
+      const item = e.target.closest('.menu-item');
+      if (!item) return;
+
+      // Handle selection and panel switching
       document.querySelectorAll('.menu-item.active').forEach(i => i.classList.remove('active'));
       item.classList.add('active');
-      const panelId = item.closest('.parent')?.dataset.panel || item.dataset.panel;
-      document.querySelectorAll('.panel.active').forEach(p => p.classList.remove('active'));
-      document.getElementById(panelId)?.classList.add('active');
-    }
-    // Click listener
-    document.addEventListener('click', (e) => {
-      const item = e.target.closest('.menu-item');
-      if (item) {
-        const parent = item.closest('.parent');
-        if (parent) toggleOpen(parent);
-        selectItem(item);
+
+      // Check if it's a parent toggle
+      const parent = item.closest('.parent');
+      
+      // If we clicked the parent's top-level menu-item, toggle the children
+      if (parent && parent.firstElementChild === item) {
+        parent.classList.toggle('open');
+      }
+
+      const panelId = item.dataset.panel || (parent && parent.dataset.panel);
+      if (panelId) {
+        document.querySelectorAll('.panel.active').forEach(p => p.classList.remove('active'));
+        const panel = document.getElementById(panelId);
+        if (panel) panel.classList.add('active');
       }
     });
-    // Load
-    // same
+
+    // Load state
+    if (localStorage.theme === 'light') toggleTheme();
+    if (localStorage.sidebarCollapsed === 'true') {
+      document.getElementById('sidebar').classList.add('collapsed');
+      document.querySelector('.menu-toggle').textContent = '→';
+    }
   </script>
 </body>
 </html>
@@ -247,5 +287,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(3001, '0.0.0.0', () => {
-  console.log('Mission Control v0.6 live: Chevron bugs squashed!');
+  console.log('Mission Control v0.7 live: Chevrons and click bugs fixed!');
 });
