@@ -1,9 +1,46 @@
-// Mission Control v0.8 🦞 UI Polish: Standard Header, Single Toggle
+// Mission Control v0.9 🦞 UI Polish: Flat Sidebar Menu
 // Node HTTP server on port 3001
 
 const http = require('http');
 
+
+const { exec } = require('child_process');
+const fs_module = require('fs');
+const path = require('path');
+
 const server = http.createServer((req, res) => {
+  // --- LiteLLM API Endpoints ---
+  if (req.url.startsWith('/api/litellm/')) {
+    const action = req.url.split('/')[3];
+    const liteLlmDir = '/Users/openclaw/litellm';
+    
+    if (action === 'logs') {
+      const logPath = path.join(liteLlmDir, 'litellm.log');
+      exec(`tail -n 100 "${logPath}"`, (error, stdout, stderr) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ output: stdout || stderr || (error ? error.message : 'No logs found.') }));
+      });
+      return;
+    }
+    
+    const commands = {
+      'start': './launchd_start_LiteLLM.command',
+      'kill': './kill_LiteLLM.command',
+      'health': './health_LiteLLM.command',
+      'ps': './ps_LiteLLM.command',
+      'test': './testModel_LiteLLM.command',
+      'open-log': 'open ./open_LiteLLM_Log.command'
+    };
+    
+    if (commands[action]) {
+      exec(commands[action], { cwd: liteLlmDir }, (error, stdout, stderr) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ output: stdout || stderr || (error ? error.message : 'Executed successfully.') }));
+      });
+      return;
+    }
+  }
+
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(`
 <!DOCTYPE html>
@@ -99,11 +136,7 @@ const server = http.createServer((req, res) => {
     }
     .icon-btn:hover { background: var(--bg-hover-dark); }
     body.light .icon-btn:hover { background: var(--bg-hover-light); }
-    
-    #sidebar.collapsed #toggle-all-btn {
-      display: none;
-    }
-    
+        
     /* Menu Items */
     #menu-container {
       flex: 1;
@@ -135,29 +168,10 @@ const server = http.createServer((req, res) => {
       transition: opacity 0.2s;
     }
     #sidebar.collapsed .label { opacity: 0; }
-    
-    /* Chevron logic */
-    .parent .chevron {
-      position: absolute;
-      left: 1.1rem;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 0.75rem;
-      transition: transform 0.2s ease;
-      display: inline-block;
-      pointer-events: none;
+
+    #sidebar.collapsed .menu-item {
+      padding: 0.75rem 1rem;
     }
-    .parent.open > .menu-item .chevron {
-      transform: translateY(-50%) rotate(90deg);
-    }
-    
-    .children {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.3s ease;
-    }
-    .parent.open > .children { max-height: 1000px; }
-    .children .menu-item { padding-left: 5rem; }
     
     /* Main Content */
     #main {
@@ -165,8 +179,96 @@ const server = http.createServer((req, res) => {
       padding: 2rem;
       overflow-y: auto;
     }
+
     .panel { display: none; }
-    .panel.active { display: block; }
+    .panel.active { display: block; height: 100%; display: flex; flex-direction: column; }
+    
+    /* Dual Console Layout */
+    .dashboard-grid {
+      display: grid;
+      grid-template-rows: auto 1fr 1fr;
+      gap: 1rem;
+      height: 100%;
+      padding-bottom: 2rem;
+    }
+    
+    .action-bar {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      background: rgba(0,0,0,0.2);
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid rgba(59,130,246,0.2);
+    }
+    body.light .action-bar {
+      background: rgba(0,0,0,0.05);
+      border-color: rgba(29,78,216,0.2);
+    }
+    
+    .btn {
+      background: rgba(59,130,246,0.2);
+      color: var(--text-dark);
+      border: 1px solid rgba(59,130,246,0.5);
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: rgba(59,130,246,0.4); }
+    body.light .btn {
+      color: var(--text-light);
+      background: rgba(29,78,216,0.1);
+      border-color: rgba(29,78,216,0.4);
+    }
+    body.light .btn:hover { background: rgba(29,78,216,0.2); }
+    
+    .btn.danger { border-color: rgba(239,68,68,0.5); color: #ef4444; }
+    .btn.danger:hover { background: rgba(239,68,68,0.2); }
+    
+    .btn.success { border-color: rgba(34,197,94,0.5); color: #22c55e; }
+    .btn.success:hover { background: rgba(34,197,94,0.2); }
+    
+    .console-window {
+      background: #0f172a;
+      border: 1px solid rgba(59,130,246,0.3);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 150px;
+    }
+    body.light .console-window {
+      background: #1e293b;
+      color: #e2e8f0;
+    }
+    
+    .console-header {
+      background: rgba(0,0,0,0.5);
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #94a3b8;
+      border-bottom: 1px solid rgba(59,130,246,0.2);
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .console-body {
+      padding: 1rem;
+      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+      font-size: 0.85rem;
+      color: #38bdf8;
+      overflow-y: auto;
+      flex: 1;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    
+    .console-body.error { color: #f87171; }
+    .console-body.log { color: #cbd5e1; }
+
     
     /* Theme Toggle */
     .theme-toggle {
@@ -197,7 +299,7 @@ const server = http.createServer((req, res) => {
     <div class="sidebar-header">
       <span class="logo-text">Mission Control 🦞</span>
       <div class="header-actions">
-        <button id="toggle-all-btn" class="icon-btn" onclick="toggleAllParents()" title="Expand All">📂</button>
+        
         <button id="toggle-sidebar-btn" class="icon-btn" onclick="toggleSidebar()" title="Toggle Sidebar">☰</button>
       </div>
     </div>
@@ -208,43 +310,39 @@ const server = http.createServer((req, res) => {
           <span class="icon">🚀</span>
           <span class="label">Dashboard</span>
         </li>
-        <li class="parent" data-panel="openclaw">
-          <div class="menu-item">
-            <span class="chevron">►</span>
-            <span class="icon">⚙️</span>
-            <span class="label">OpenClaw</span>
-          </div>
-          <ul class="children">
-            <li class="menu-item" data-panel="gateway">
-              <span class="icon">🔌</span>
-              <span class="label">Gateway</span>
-            </li>
-            <li class="menu-item" data-panel="sessions">
-              <span class="icon">📱</span>
-              <span class="label">Sessions</span>
-            </li>
-            <li class="menu-item" data-panel="skills">
-              <span class="icon">🛠️</span>
-              <span class="label">Skills</span>
-            </li>
-          </ul>
+        <li class="menu-item" data-panel="openclaw">
+          <span class="icon">⚙️</span>
+          <span class="label">OpenClaw</span>
         </li>
+        <li class="menu-item" data-panel="gateway">
+          <span class="icon">🔌</span>
+          <span class="label">Gateway</span>
+        </li>
+        <li class="menu-item" data-panel="sessions">
+          <span class="icon">📱</span>
+          <span class="label">Sessions</span>
+        </li>
+        <li class="menu-item" data-panel="skills">
+          <span class="icon">🛠️</span>
+          <span class="label">Skills</span>
+        </li>
+
         <li class="menu-item" data-panel="nodes">
           <span class="icon">🖥️</span>
           <span class="label">Nodes</span>
         </li>
-        <li class="parent" data-panel="projects">
-          <div class="menu-item">
-            <span class="chevron">►</span>
-            <span class="icon">📁</span>
-            <span class="label">Projects</span>
-          </div>
-          <ul class="children">
-            <li class="menu-item" data-panel="mc-docs">
-              <span class="icon">📚</span>
-              <span class="label">Docs</span>
-            </li>
-          </ul>
+        <li class="menu-item" data-panel="litellm">
+          <span class="icon">🧠</span>
+          <span class="label">LiteLLM</span>
+        </li>
+
+        <li class="menu-item" data-panel="projects">
+          <span class="icon">📁</span>
+          <span class="label">Projects</span>
+        </li>
+        <li class="menu-item" data-panel="mc-docs">
+          <span class="icon">📚</span>
+          <span class="label">Docs</span>
         </li>
       </ul>
     </div>
@@ -252,7 +350,7 @@ const server = http.createServer((req, res) => {
   
   <main id="main">
     <section id="dashboard" class="panel active">
-      <h1>🚀 Mission Control v0.8</h1>
+      <h1>🚀 Mission Control v0.9</h1>
       <p>Industry-standard layout: Header with Hamburger (☰) and single Expand/Collapse toggle (📂/📁) tightly grouped.</p>
     </section>
     <section id="openclaw" class="panel">
@@ -265,7 +363,39 @@ const server = http.createServer((req, res) => {
     </section>
     <section id="sessions" class="panel"><h1>📱 Sessions</h1><p>List/spawn.</p></section>
     <section id="skills" class="panel"><h1>🛠️ Skills</h1><p>Browser.</p></section>
+    
     <section id="nodes" class="panel"><h1>🖥️ Nodes</h1><p>Control.</p></section>
+    
+    <!-- LiteLLM Panel -->
+    <section id="litellm" class="panel">
+      <div class="dashboard-grid">
+        <div class="action-bar">
+          <button class="btn success" onclick="runLiteLLM('start')">▶ Start (launchd)</button>
+          <button class="btn danger" onclick="runLiteLLM('kill')">⏹ Kill Server</button>
+          <button class="btn" onclick="runLiteLLM('health')">🏥 Check Health</button>
+          <button class="btn" onclick="runLiteLLM('ps')">📊 Process Status</button>
+          <button class="btn" onclick="runLiteLLM('test')">🧪 Test Model</button>
+          <button class="btn" onclick="runLiteLLM('open-log')">🪟 Open Log App</button>
+        </div>
+        
+        <div class="console-window">
+          <div class="console-header">
+            <span>COMMAND OUTPUT</span>
+            <span id="litellm-status">Idle</span>
+          </div>
+          <div class="console-body" id="litellm-output">Waiting for command...</div>
+        </div>
+        
+        <div class="console-window">
+          <div class="console-header">
+            <span>litellm.log (Tailing)</span>
+            <button class="icon-btn" style="width:24px;height:24px;font-size:0.8rem;" onclick="fetchLiteLLMLogs()" title="Refresh">🔄</button>
+          </div>
+          <div class="console-body log" id="litellm-logs">Loading logs...</div>
+        </div>
+      </div>
+    </section>
+
     <section id="projects" class="panel"><h1>📁 Projects</h1><p>Overview.</p></section>
     <section id="mc-docs" class="panel"><h1>📚 Docs</h1><p>Coming.</p></section>
   </main>
@@ -284,54 +414,64 @@ const server = http.createServer((req, res) => {
       localStorage.sidebarCollapsed = sidebar.classList.contains('collapsed');
     }
     
-    function toggleAllParents() {
-      const parents = document.querySelectorAll('.parent');
-      const anyClosed = Array.from(parents).some(p => !p.classList.contains('open'));
+
+    
+
+
+
+    // LiteLLM API Functions
+    async function runLiteLLM(action) {
+      const outputDiv = document.getElementById('litellm-output');
+      const statusSpan = document.getElementById('litellm-status');
       
-      if (anyClosed) {
-        parents.forEach(p => p.classList.add('open'));
-      } else {
-        parents.forEach(p => p.classList.remove('open'));
+      outputDiv.textContent = 'Executing ./ ' + action + '_LiteLLM.command...';
+      statusSpan.textContent = 'Running...';
+      
+      try {
+        const response = await fetch('/api/litellm/' + action);
+        const data = await response.json();
+        outputDiv.textContent = data.output || 'No output.';
+        statusSpan.textContent = 'Completed';
+        setTimeout(fetchLiteLLMLogs, 1000);
+      } catch (err) {
+        outputDiv.textContent = 'Error: ' + err.message;
+        statusSpan.textContent = 'Failed';
       }
-      updateToggleAllButton();
     }
     
-    function updateToggleAllButton() {
-      const parents = document.querySelectorAll('.parent');
-      const anyClosed = Array.from(parents).some(p => !p.classList.contains('open'));
-      const btn = document.getElementById('toggle-all-btn');
-      
-      if (anyClosed) {
-        btn.textContent = '📂';
-        btn.title = 'Expand All';
-      } else {
-        btn.textContent = '📁';
-        btn.title = 'Collapse All';
+    async function fetchLiteLLMLogs() {
+      const logsDiv = document.getElementById('litellm-logs');
+      try {
+        const response = await fetch('/api/litellm/logs');
+        const data = await response.json();
+        logsDiv.textContent = data.output;
+        logsDiv.scrollTop = logsDiv.scrollHeight;
+      } catch (err) {
+        logsDiv.textContent = 'Failed to load logs: ' + err.message;
       }
     }
+    
+    setInterval(() => {
+      const litellmPanel = document.getElementById('litellm');
+      if (litellmPanel && litellmPanel.classList.contains('active')) {
+        fetchLiteLLMLogs();
+      }
+    }, 5000);
+
+    fetchLiteLLMLogs();
 
     // Event delegation for clicks
+
     document.addEventListener('click', (e) => {
-      // Don't interfere with the header buttons
       if (e.target.closest('.header-actions') || e.target.closest('.theme-toggle')) return;
       
       const item = e.target.closest('.menu-item');
       if (!item) return;
 
-      // Handle selection and panel switching
       document.querySelectorAll('.menu-item.active').forEach(i => i.classList.remove('active'));
       item.classList.add('active');
 
-      const parent = item.closest('.parent');
-      
-      // If we clicked the parent's top-level menu-item, toggle the children
-      if (parent && parent.firstElementChild === item) {
-        parent.classList.toggle('open');
-        updateToggleAllButton();
-      }
-
-      // Show panel
-      const panelId = item.dataset.panel || (parent && parent.dataset.panel);
+      const panelId = item.dataset.panel;
       if (panelId) {
         document.querySelectorAll('.panel.active').forEach(p => p.classList.remove('active'));
         const panel = document.getElementById(panelId);
@@ -347,13 +487,12 @@ const server = http.createServer((req, res) => {
     if (localStorage.sidebarCollapsed === 'true') {
       document.getElementById('sidebar').classList.add('collapsed');
     }
-    updateToggleAllButton();
-  </script>
+      </script>
 </body>
 </html>
     `);
 });
 
 server.listen(3001, "0.0.0.0", () => {
-  console.log("Mission Control v0.8 live: Industry-standard header!");
+  console.log("Mission Control v0.9 live: Flat Sidebar Menu!");
 });
