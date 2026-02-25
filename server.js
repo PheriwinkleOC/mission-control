@@ -1,4 +1,4 @@
-// Mission Control v0.7 🦞 Bugfixes: Chevrons, Event Handlers
+// Mission Control v0.8 🦞 UI Polish: Standard Header, Single Toggle
 // Node HTTP server on port 3001
 
 const http = require('http');
@@ -33,49 +33,83 @@ const server = http.createServer((req, res) => {
       background: var(--bg-light);
       color: var(--text-light);
     }
+    
+    /* Sidebar Base */
     #sidebar {
       width: 280px;
       background: rgba(0,0,0,0.8);
       backdrop-filter: blur(20px);
       transition: width 0.3s ease;
-      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
       border-right: 1px solid rgba(59,130,246,0.3);
+      z-index: 100;
     }
     body.light #sidebar { background: rgba(255,255,255,0.9); border-right-color: rgba(29,78,216,0.3); }
     #sidebar.collapsed { width: 64px; }
-    .menu-toggle {
-      width: 100%;
-      height: 48px;
+    
+    /* Sidebar Header */
+    .sidebar-header {
+      height: 60px;
       display: flex;
       align-items: center;
+      padding: 0 1rem;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(59,130,246,0.3);
+      flex-shrink: 0;
+    }
+    body.light .sidebar-header { border-bottom-color: rgba(29,78,216,0.3); }
+    
+    .sidebar-header .logo-text {
+      font-weight: 600;
+      font-size: 1.1rem;
+      white-space: nowrap;
+      opacity: 1;
+      transition: opacity 0.2s ease;
+      overflow: hidden;
+    }
+    #sidebar.collapsed .sidebar-header .logo-text {
+      opacity: 0;
+      width: 0;
+    }
+    
+    .header-actions {
+      display: flex;
+      gap: 0.25rem;
+      align-items: center;
+    }
+    #sidebar.collapsed .header-actions {
+      width: 100%;
       justify-content: center;
-      font-size: 1.5rem;
+    }
+    
+    .icon-btn {
       background: none;
       border: none;
       color: inherit;
       cursor: pointer;
-    }
-    .global-controls {
-      padding: 0.5rem;
-      display: flex;
-      gap: 0.25rem;
-      justify-content: center;
-    }
-    .global-btn {
-      width: 32px;
-      height: 32px;
-      border: 1px solid currentColor;
-      background: none;
-      color: inherit;
-      border-radius: 4px;
-      cursor: pointer;
-      opacity: 0.7;
+      width: 36px;
+      height: 36px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.9rem;
+      border-radius: 6px;
+      font-size: 1.2rem;
+      transition: background 0.2s;
     }
-    .global-btn:hover { opacity: 1; }
+    .icon-btn:hover { background: var(--bg-hover-dark); }
+    body.light .icon-btn:hover { background: var(--bg-hover-light); }
+    
+    #sidebar.collapsed #toggle-all-btn {
+      display: none;
+    }
+    
+    /* Menu Items */
+    #menu-container {
+      flex: 1;
+      overflow-y: auto;
+      padding-top: 0.5rem;
+    }
     #menu-items {
       list-style: none;
     }
@@ -92,7 +126,8 @@ const server = http.createServer((req, res) => {
     body.light .menu-item:hover { background: var(--bg-hover-light); }
     .menu-item.active { background: rgba(59,130,246,0.3); }
     body.light .menu-item.active { background: rgba(29,78,216,0.3); }
-    .icon { min-width: 24px; font-size: 1.1rem; flex-shrink: 0; }
+    
+    .icon { min-width: 24px; font-size: 1.2rem; flex-shrink: 0; text-align: center; }
     .label {
       flex: 1;
       white-space: nowrap;
@@ -104,7 +139,7 @@ const server = http.createServer((req, res) => {
     /* Chevron logic */
     .parent .chevron {
       position: absolute;
-      left: 1rem;
+      left: 1.1rem;
       top: 50%;
       transform: translateY(-50%);
       font-size: 0.75rem;
@@ -124,6 +159,7 @@ const server = http.createServer((req, res) => {
     .parent.open > .children { max-height: 1000px; }
     .children .menu-item { padding-left: 5rem; }
     
+    /* Main Content */
     #main {
       flex: 1;
       padding: 2rem;
@@ -131,6 +167,8 @@ const server = http.createServer((req, res) => {
     }
     .panel { display: none; }
     .panel.active { display: block; }
+    
+    /* Theme Toggle */
     .theme-toggle {
       position: fixed;
       top: 1rem;
@@ -153,62 +191,69 @@ const server = http.createServer((req, res) => {
   </style>
 </head>
 <body>
-  <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+  <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme">🌙</button>
+  
   <nav id="sidebar">
-    <button class="menu-toggle" onclick="toggleSidebar()">←</button>
-    <div class="global-controls">
-      <button class="global-btn" onclick="expandAll()" title="Expand All">📂</button>
-      <button class="global-btn" onclick="collapseAll()" title="Collapse All">📁</button>
+    <div class="sidebar-header">
+      <span class="logo-text">Mission Control 🦞</span>
+      <div class="header-actions">
+        <button id="toggle-all-btn" class="icon-btn" onclick="toggleAllParents()" title="Expand All">📂</button>
+        <button id="toggle-sidebar-btn" class="icon-btn" onclick="toggleSidebar()" title="Toggle Sidebar">☰</button>
+      </div>
     </div>
-    <ul id="menu-items">
-      <li class="menu-item active" data-panel="dashboard">
-        <span class="icon">🚀</span>
-        <span class="label">Dashboard</span>
-      </li>
-      <li class="parent" data-panel="openclaw">
-        <div class="menu-item">
-          <span class="chevron">►</span>
-          <span class="icon">⚙️</span>
-          <span class="label">OpenClaw</span>
-        </div>
-        <ul class="children">
-          <li class="menu-item" data-panel="gateway">
-            <span class="icon">🔌</span>
-            <span class="label">Gateway</span>
-          </li>
-          <li class="menu-item" data-panel="sessions">
-            <span class="icon">📱</span>
-            <span class="label">Sessions</span>
-          </li>
-          <li class="menu-item" data-panel="skills">
-            <span class="icon">🛠️</span>
-            <span class="label">Skills</span>
-          </li>
-        </ul>
-      </li>
-      <li class="menu-item" data-panel="nodes">
-        <span class="icon">🖥️</span>
-        <span class="label">Nodes</span>
-      </li>
-      <li class="parent" data-panel="projects">
-        <div class="menu-item">
-          <span class="chevron">►</span>
-          <span class="icon">📁</span>
-          <span class="label">Projects</span>
-        </div>
-        <ul class="children">
-          <li class="menu-item" data-panel="mc-docs">
-            <span class="icon">📚</span>
-            <span class="label">Docs</span>
-          </li>
-        </ul>
-      </li>
-    </ul>
+    
+    <div id="menu-container">
+      <ul id="menu-items">
+        <li class="menu-item active" data-panel="dashboard">
+          <span class="icon">🚀</span>
+          <span class="label">Dashboard</span>
+        </li>
+        <li class="parent" data-panel="openclaw">
+          <div class="menu-item">
+            <span class="chevron">►</span>
+            <span class="icon">⚙️</span>
+            <span class="label">OpenClaw</span>
+          </div>
+          <ul class="children">
+            <li class="menu-item" data-panel="gateway">
+              <span class="icon">🔌</span>
+              <span class="label">Gateway</span>
+            </li>
+            <li class="menu-item" data-panel="sessions">
+              <span class="icon">📱</span>
+              <span class="label">Sessions</span>
+            </li>
+            <li class="menu-item" data-panel="skills">
+              <span class="icon">🛠️</span>
+              <span class="label">Skills</span>
+            </li>
+          </ul>
+        </li>
+        <li class="menu-item" data-panel="nodes">
+          <span class="icon">🖥️</span>
+          <span class="label">Nodes</span>
+        </li>
+        <li class="parent" data-panel="projects">
+          <div class="menu-item">
+            <span class="chevron">►</span>
+            <span class="icon">📁</span>
+            <span class="label">Projects</span>
+          </div>
+          <ul class="children">
+            <li class="menu-item" data-panel="mc-docs">
+              <span class="icon">📚</span>
+              <span class="label">Docs</span>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </div>
   </nav>
+  
   <main id="main">
     <section id="dashboard" class="panel active">
-      <h1>🚀 Mission Control v0.7</h1>
-      <p>Bugfixes applied: Chevrons rotate correctly, no double triangles, and click events work consistently without double-firing.</p>
+      <h1>🚀 Mission Control v0.8</h1>
+      <p>Industry-standard layout: Header with Hamburger (☰) and single Expand/Collapse toggle (📂/📁) tightly grouped.</p>
     </section>
     <section id="openclaw" class="panel">
       <h1>⚙️ OpenClaw Overview</h1>
@@ -224,6 +269,7 @@ const server = http.createServer((req, res) => {
     <section id="projects" class="panel"><h1>📁 Projects</h1><p>Overview.</p></section>
     <section id="mc-docs" class="panel"><h1>📚 Docs</h1><p>Coming.</p></section>
   </main>
+  
   <script>
     function toggleTheme() {
       document.body.classList.toggle('light');
@@ -235,22 +281,40 @@ const server = http.createServer((req, res) => {
     function toggleSidebar() {
       const sidebar = document.getElementById('sidebar');
       sidebar.classList.toggle('collapsed');
-      const isCollapsed = sidebar.classList.contains('collapsed');
-      localStorage.sidebarCollapsed = isCollapsed;
-      document.querySelector('.menu-toggle').textContent = isCollapsed ? '→' : '←';
+      localStorage.sidebarCollapsed = sidebar.classList.contains('collapsed');
     }
     
-    function expandAll() {
-      document.querySelectorAll('.parent').forEach(p => p.classList.add('open'));
+    function toggleAllParents() {
+      const parents = document.querySelectorAll('.parent');
+      const anyClosed = Array.from(parents).some(p => !p.classList.contains('open'));
+      
+      if (anyClosed) {
+        parents.forEach(p => p.classList.add('open'));
+      } else {
+        parents.forEach(p => p.classList.remove('open'));
+      }
+      updateToggleAllButton();
     }
     
-    function collapseAll() {
-      document.querySelectorAll('.parent').forEach(p => p.classList.remove('open'));
+    function updateToggleAllButton() {
+      const parents = document.querySelectorAll('.parent');
+      const anyClosed = Array.from(parents).some(p => !p.classList.contains('open'));
+      const btn = document.getElementById('toggle-all-btn');
+      
+      if (anyClosed) {
+        btn.textContent = '📂';
+        btn.title = 'Expand All';
+      } else {
+        btn.textContent = '📁';
+        btn.title = 'Collapse All';
+      }
     }
 
-    // Cleaned up click event delegation
+    // Event delegation for clicks
     document.addEventListener('click', (e) => {
-      // Find closest menu item
+      // Don't interfere with the header buttons
+      if (e.target.closest('.header-actions') || e.target.closest('.theme-toggle')) return;
+      
       const item = e.target.closest('.menu-item');
       if (!item) return;
 
@@ -258,14 +322,15 @@ const server = http.createServer((req, res) => {
       document.querySelectorAll('.menu-item.active').forEach(i => i.classList.remove('active'));
       item.classList.add('active');
 
-      // Check if it's a parent toggle
       const parent = item.closest('.parent');
       
       // If we clicked the parent's top-level menu-item, toggle the children
       if (parent && parent.firstElementChild === item) {
         parent.classList.toggle('open');
+        updateToggleAllButton();
       }
 
+      // Show panel
       const panelId = item.dataset.panel || (parent && parent.dataset.panel);
       if (panelId) {
         document.querySelectorAll('.panel.active').forEach(p => p.classList.remove('active'));
@@ -274,18 +339,16 @@ const server = http.createServer((req, res) => {
       }
     });
 
-    // Load state
-    if (localStorage.theme === 'light') toggleTheme();
+    // Initial Load state
+    if (localStorage.theme === 'light') {
+      document.body.classList.add('light');
+      document.querySelector('.theme-toggle').textContent = '☀️';
+    }
     if (localStorage.sidebarCollapsed === 'true') {
       document.getElementById('sidebar').classList.add('collapsed');
-      document.querySelector('.menu-toggle').textContent = '→';
     }
+    updateToggleAllButton();
   </script>
 </body>
 </html>
-  `);
-});
-
-server.listen(3001, '0.0.0.0', () => {
-  console.log('Mission Control v0.7 live: Chevrons and click bugs fixed!');
-});
+  
