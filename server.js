@@ -351,4 +351,9 @@ const server = http.createServer((req, res) => {
   </script>
 </body>
 </html>
-  
+    `);
+});
+
+server.listen(3001, "0.0.0.0", () => {
+  console.log("Mission Control v0.8 live: Industry-standard header!");
+});
