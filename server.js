@@ -1,5 +1,5 @@
-// Mission Control v0.4 🦞 Hierarchical Sidebar Menu
-// Node HTTP server on port 3001 - Vanilla JS/CSS
+// Mission Control v0.5 🦞 Outline-Style Sidebar Polish
+// Single-widget chevron ►/▼, sidebar ←/→ toggle, Word-like indent
 
 const http = require('http');
 
@@ -42,13 +42,13 @@ const server = http.createServer((req, res) => {
       border-right: 1px solid rgba(59,130,246,0.3);
     }
     body.light #sidebar { background: rgba(255,255,255,0.9); border-right-color: rgba(29,78,216,0.3); }
-    #sidebar.collapsed {
-      width: 64px;
-    }
+    #sidebar.collapsed { width: 64px; }
     .menu-toggle {
       width: 100%;
-      padding: 1rem;
-      text-align: center;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 1.5rem;
       background: none;
       border: none;
@@ -56,161 +56,183 @@ const server = http.createServer((req, res) => {
       cursor: pointer;
     }
     .global-controls {
-      padding: 0.5rem 1rem;
+      padding: 0.5rem;
       display: flex;
-      gap: 0.5rem;
+      gap: 0.25rem;
       justify-content: center;
-      font-size: 0.8rem;
     }
     .global-btn {
-      padding: 0.25rem 0.5rem;
+      width: 32px;
+      height: 32px;
       border: 1px solid currentColor;
       background: none;
       color: inherit;
       border-radius: 4px;
       cursor: pointer;
       opacity: 0.7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
     }
     .global-btn:hover { opacity: 1; }
     #menu-items {
       list-style: none;
     }
     .menu-item {
-      padding: 0.75rem 1rem;
+      padding: 0.75rem 1rem 0.75rem 3rem; /* indent base */
       cursor: pointer;
+      position: relative;
       display: flex;
       align-items: center;
       gap: 0.75rem;
-      position: relative;
     }
-    .menu-item:hover {
-      background: var(--bg-hover-dark);
-    }
+    .menu-item:hover { background: var(--bg-hover-dark); }
     body.light .menu-item:hover { background: var(--bg-hover-light); }
     .menu-item.active { background: rgba(59,130,246,0.3); }
     body.light .menu-item.active { background: rgba(29,78,216,0.3); }
-    .icon { min-width: 24px; font-size: 1.2rem; }
+    .icon { min-width: 24px; font-size: 1.1rem; flex-shrink: 0; }
     .label {
+      flex: 1;
       white-space: nowrap;
       opacity: 1;
       transition: opacity 0.2s;
     }
     #sidebar.collapsed .label { opacity: 0; }
-    .parent > .menu-item::after {
-      content: '▽';
+    .parent .chevron {
       position: absolute;
-      right: 1rem;
+      left: 1rem;
       font-size: 0.8rem;
-      transition: transform 0.2s;
+      transition: transform 0.2s ease;
+      width: 20px;
+      text-align: center;
     }
-    .parent.open > .menu-item::after { transform: rotate(90deg); }
+    .parent.open .chevron { transform: rotate(90deg); }
+    .children .menu-item { padding-left: 4.5rem; } /* deeper indent for children */
     .children {
-      list-style: none;
       max-height: 0;
       overflow: hidden;
       transition: max-height 0.3s ease;
     }
-    .children.open { max-height: 500px; /* adjust as needed */ }
-    .children .menu-item { padding-left: 2.5rem; }
+    .children.open { max-height: 1000px; }
     #main {
       flex: 1;
       padding: 2rem;
       overflow-y: auto;
     }
-    .panel {
-      display: none;
-    }
+    .panel { display: none; }
     .panel.active { display: block; }
     .theme-toggle {
       position: fixed;
       top: 1rem;
       right: 1rem;
       z-index: 1000;
-      padding: 0.5rem;
-      font-size: 1.5rem;
+      width: 48px;
+      height: 48px;
       border: none;
       border-radius: 50%;
       cursor: pointer;
       background: rgba(59,130,246,0.2);
+      color: var(--text-dark);
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       backdrop-filter: blur(10px);
     }
-    body.light .theme-toggle { background: rgba(29,78,216,0.2); }
+    body.light .theme-toggle { background: rgba(29,78,216,0.2); color: var(--text-light); }
   </style>
 </head>
 <body>
   <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
   <nav id="sidebar">
-    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <button class="menu-toggle" onclick="toggleSidebar()">←</button>
     <div class="global-controls">
-      <button class="global-btn" onclick="expandAll()">📂</button>
-      <button class="global-btn" onclick="collapseAll()">📁</button>
+      <button class="global-btn" onclick="expandAll()" title="Expand All">📂</button>
+      <button class="global-btn" onclick="collapseAll()" title="Collapse All">📁</button>
     </div>
     <ul id="menu-items">
       <li class="menu-item active" data-panel="dashboard" data-icon="🚀">
+        <span class="chevron"></span>
         <span class="icon">🚀</span>
         <span class="label">Dashboard</span>
       </li>
-      <li class="parent menu-item" data-icon="⚙️">
-        <span class="icon">⚙️</span>
-        <span class="label">OpenClaw</span>
+      <li class="parent" data-icon="⚙️">
+        <div class="menu-item" data-panel="openclaw" onclick="selectItem(this.parentElement); toggleParent(this)">
+          <span class="chevron">►</span>
+          <span class="icon">⚙️</span>
+          <span class="label">OpenClaw</span>
+        </div>
         <ul class="children">
-          <li class="menu-item" data-panel="gateway" data-icon="🔌"><span class="icon">🔌</span><span class="label">Gateway</span></li>
-          <li class="menu-item" data-panel="sessions" data-icon="📱"><span class="icon">📱</span><span class="label">Sessions</span></li>
-          <li class="menu-item" data-panel="skills" data-icon="🛠️"><span class="icon">🛠️</span><span class="label">Skills</span></li>
+          <li class="menu-item" data-panel="gateway" data-icon="🔌" onclick="selectItem(this)">
+            <span class="icon">🔌</span>
+            <span class="label">Gateway</span>
+          </li>
+          <li class="menu-item" data-panel="sessions" data-icon="📱" onclick="selectItem(this)">
+            <span class="icon">📱</span>
+            <span class="label">Sessions</span>
+          </li>
+          <li class="menu-item" data-panel="skills" data-icon="🛠️" onclick="selectItem(this)">
+            <span class="icon">🛠️</span>
+            <span class="label">Skills</span>
+          </li>
         </ul>
       </li>
-      <li class="menu-item" data-panel="nodes" data-icon="🖥️">
+      <li class="menu-item" data-panel="nodes" data-icon="🖥️" onclick="selectItem(this)">
         <span class="icon">🖥️</span>
         <span class="label">Nodes</span>
       </li>
-      <li class="parent menu-item" data-icon="📁">
-        <span class="icon">📁</span>
-        <span class="label">Projects</span>
+      <li class="parent" data-icon="📁">
+        <div class="menu-item" data-panel="projects" onclick="selectItem(this.parentElement); toggleParent(this)">
+          <span class="chevron">►</span>
+          <span class="icon">📁</span>
+          <span class="label">Projects</span>
+        </div>
         <ul class="children">
-          <li class="menu-item" data-panel="mc-docs" data-icon="📚"><span class="icon">📚</span><span class="label">Docs</span></li>
+          <li class="menu-item" data-panel="mc-docs" data-icon="📚" onclick="selectItem(this)">
+            <span class="icon">📚</span>
+            <span class="label">Docs</span>
+          </li>
         </ul>
       </li>
     </ul>
   </nav>
   <main id="main">
+    <!-- panels same as before -->
     <section id="dashboard" class="panel active">
-      <h1>🚀 Mission Control</h1>
-      <p>Welcome. Sidebar hierarchy loaded—test expands, global toggle, sweep collapse (icons persist).</p>
+      <h1>🚀 Mission Control v0.5</h1>
+      <p>Word-style outline sidebar: ►/▼ single-click expand, deeper indent, ←/→ sweep.</p>
+    </section>
+    <section id="openclaw" class="panel">
+      <h1>⚙️ OpenClaw Overview</h1>
+      <p>Parent panel example.</p>
     </section>
     <section id="gateway" class="panel">
-      <h1>🔌 Gateway Status</h1>
-      <p>Live openclaw gateway status here (dynamic next).</p>
+      <h1>🔌 Gateway</h1>
+      <p>Status coming live.</p>
     </section>
-    <section id="sessions" class="panel">
-      <h1>📱 Sessions</h1>
-      <p>Session list/spawn.</p>
-    </section>
-    <section id="skills" class="panel">
-      <h1>🛠️ Skills</h1>
-      <p>Skill browser/install.</p>
-    </section>
-    <section id="nodes" class="panel">
-      <h1>🖥️ Nodes</h1>
-      <p>Node control.</p>
-    </section>
-    <section id="mc-docs" class="panel">
-      <h1>📚 Project Docs</h1>
-      <p>Mission Control docs.</p>
-    </section>
+    <!-- etc, same -->
+    <section id="sessions" class="panel"><h1>📱 Sessions</h1><p>List/spawn.</p></section>
+    <section id="skills" class="panel"><h1>🛠️ Skills</h1><p>Browser.</p></section>
+    <section id="nodes" class="panel"><h1>🖥️ Nodes</h1><p>Control.</p></section>
+    <section id="projects" class="panel"><h1>📁 Projects</h1><p>Overview.</p></section>
+    <section id="mc-docs" class="panel"><h1>📚 Docs</h1><p>Coming.</p></section>
   </main>
   <script>
     function toggleTheme() {
       document.body.classList.toggle('light');
-      const isLight = document.body.classList.contains('light');
-      localStorage.theme = isLight ? 'light' : 'dark';
-      document.querySelector('.theme-toggle').textContent = isLight ? '☀️' : '🌙';
+      localStorage.theme = document.body.classList.contains('light') ? 'light' : 'dark';
+      document.querySelector('.theme-toggle').textContent = document.body.classList.contains('light') ? '☀️' : '🌙';
     }
     function toggleSidebar() {
-      document.getElementById('sidebar').classList.toggle('collapsed');
-      localStorage.sidebarCollapsed = document.getElementById('sidebar').classList.contains('collapsed');
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.toggle('collapsed');
+      const isCollapsed = sidebar.classList.contains('collapsed');
+      localStorage.sidebarCollapsed = isCollapsed;
+      document.querySelector('.menu-toggle').textContent = isCollapsed ? '→' : '←';
     }
-    function toggleParent(el) {
-      el.parentElement.classList.toggle('open');
+    function toggleParent(target) {
+      target.closest('.parent').classList.toggle('open');
     }
     function expandAll() {
       document.querySelectorAll('.children').forEach(c => c.classList.add('open'));
@@ -223,24 +245,18 @@ const server = http.createServer((req, res) => {
       item.classList.add('active');
       const panelId = item.dataset.panel;
       document.querySelectorAll('.panel.active').forEach(p => p.classList.remove('active'));
-      document.getElementById(panelId).classList.add('active');
+      document.getElementById(panelId)?.classList.add('active');
     }
-    // Event listeners
-    document.querySelectorAll('.menu-item:not(.parent) .menu-item, .parent .menu-item').forEach(item => {
-      item.addEventListener('click', () => selectItem(item));
-    });
-    document.querySelectorAll('.parent > .menu-item').forEach(parent => {
-      parent.querySelector('span').addEventListener('click', (e) => {
-        e.stopPropagation();
-        parent.parentElement.classList.toggle('open');
-      });
+    // Listeners
+    document.addEventListener('click', (e) => {
+      const item = e.target.closest('.menu-item');
+      if (item) selectItem(item);
+      const parentChevron = e.target.closest('.parent .chevron');
+      if (parentChevron) toggleParent(parentChevron);
     });
     // Load state
     if (localStorage.theme === 'light') toggleTheme();
-    if (localStorage.sidebarCollapsed === 'true') {
-      document.getElementById('sidebar').classList.add('collapsed');
-    }
-    // Persist parent states (simple: all closed on load, toggle saves per? Skip for v0.4)
+    if (localStorage.sidebarCollapsed === 'true') toggleSidebar();
   </script>
 </body>
 </html>
@@ -248,5 +264,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(3001, '0.0.0.0', () => {
-  console.log('Mission Control v0.4 live: Hierarchical sidebar w/ collapse/expand/sweep!');
+  console.log('Mission Control v0.5 live: Word-outline polish - ►/▼ single, ←/→ toggle, indent!');
 });
