@@ -47,6 +47,8 @@ const server = http.createServer((req, res) => {
 <html>
 <head>
   <title>Mission Control 🦞</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
   <style>
     :root {
       --bg-dark: #000;
@@ -344,6 +346,10 @@ const server = http.createServer((req, res) => {
           <span class="icon">📚</span>
           <span class="label">Docs</span>
         </li>
+        <li class="menu-item" data-panel="xterm">
+          <span class="icon">🖥️</span>
+          <span class="label">Xterm</span>
+        </li>
       </ul>
     </div>
   </nav>
@@ -398,6 +404,16 @@ const server = http.createServer((req, res) => {
 
     <section id="projects" class="panel"><h1>📁 Projects</h1><p>Overview.</p></section>
     <section id="mc-docs" class="panel"><h1>📚 Docs</h1><p>Coming.</p></section>
+    <section id="xterm" class="panel">
+      <div class="prefs-bar">
+        <label>Font Size: <input type="range" id="fontSize" min="10" max="32" value="14" /></label>
+        <label>Bg: <input type="color" id="bgColor" value="#0f172a" /></label>
+        <label>Fg: <input type="color" id="fgColor" value="#38bdf8" /></label>
+      </div>
+      <div class="console-window" id="xtermContainer">
+        <div id="xtermTerm"></div>
+      </div>
+    </section>
   </main>
   
   <script>
@@ -460,6 +476,34 @@ const server = http.createServer((req, res) => {
 
     fetchLiteLLMLogs();
 
+    let xtermTerm = null;
+
+    function initXterm() {
+      xtermTerm = new Terminal({
+        fontSize: 14,
+        theme: {
+          background: '#0f172a',
+          foreground: '#38bdf8'
+        }
+      });
+      xtermTerm.open(document.getElementById('xtermTerm'));
+      xtermTerm.onData((data) => {
+        xtermTerm.write(data);
+      });
+      // Prefs listeners
+      document.getElementById('fontSize').addEventListener('input', (e) => {
+        xtermTerm.setOptions({ fontSize: parseInt(e.target.value) });
+      });
+      document.getElementById('bgColor').addEventListener('input', (e) => {
+        const theme = xtermTerm.getOption('theme');
+        xtermTerm.setOptions({ theme: { ...theme, background: e.target.value } });
+      });
+      document.getElementById('fgColor').addEventListener('input', (e) => {
+        const theme = xtermTerm.getOption('theme');
+        xtermTerm.setOptions({ theme: { ...theme, foreground: e.target.value } });
+      });
+    }
+
     // Event delegation for clicks
 
     document.addEventListener('click', (e) => {
@@ -475,6 +519,7 @@ const server = http.createServer((req, res) => {
       if (panelId) {
         document.querySelectorAll('.panel.active').forEach(p => p.classList.remove('active'));
         const panel = document.getElementById(panelId);
+        if (panelId === 'xterm') initXterm();
         if (panel) panel.classList.add('active');
       }
     });
