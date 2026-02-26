@@ -145,26 +145,29 @@ const server = http.createServer((req, res) => {
       gap: 1rem; height: 100%; padding-bottom: 2rem;
     }
     .action-bar {
-      background: rgba(0,0,0,0.2); padding: 0.75rem 1rem 1rem;
+      display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+      background: rgba(0,0,0,0.2); padding: 0.6rem 1rem;
       border-radius: 8px; border: 1px solid rgba(59,130,246,0.2);
     }
     body.light .action-bar { background: rgba(0,0,0,0.05); border-color: rgba(29,78,216,0.2); }
     .tab-nav {
-      display: flex; gap: 0; border-bottom: 1px solid rgba(59,130,246,0.25);
-      margin-bottom: 0.75rem;
+      display: flex; gap: 2px; background: rgba(0,0,0,0.3);
+      padding: 3px; border-radius: 6px; flex-shrink: 0;
     }
+    body.light .tab-nav { background: rgba(0,0,0,0.1); }
     .tab-btn {
-      background: none; border: none; border-bottom: 2px solid transparent;
-      color: #64748b; padding: 0.35rem 1.1rem 0.5rem; cursor: pointer;
-      font-weight: 600; font-size: 0.85rem; transition: all 0.2s;
+      background: none; border: none; border-radius: 4px;
+      color: #64748b; padding: 0.2rem 0.7rem; cursor: pointer;
+      font-weight: 600; font-size: 0.8rem; transition: all 0.2s;
     }
     .tab-btn:hover { color: #38bdf8; }
-    .tab-btn.active { color: #38bdf8; border-bottom-color: #38bdf8; }
+    .tab-btn.active { background: rgba(59,130,246,0.25); color: #38bdf8; }
     body.light .tab-btn { color: #94a3b8; }
     body.light .tab-btn:hover { color: #1d4ed8; }
-    body.light .tab-btn.active { color: #1d4ed8; border-bottom-color: #1d4ed8; }
-    .tab-pane { display: none; flex-wrap: wrap; gap: 0.5rem; }
-    .tab-pane.active { display: flex; }
+    body.light .tab-btn.active { background: rgba(29,78,216,0.15); color: #1d4ed8; }
+    .tab-divider { width: 1px; background: rgba(59,130,246,0.3); align-self: stretch; margin: 0 0.1rem; flex-shrink: 0; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: contents; }
 
     .btn {
       background: rgba(59,130,246,0.2); color: var(--text-dark);
@@ -422,6 +425,7 @@ const server = http.createServer((req, res) => {
             <button class="tab-btn active" onclick="switchLlmTab(event,'llm-controls')">Controls</button>
             <button class="tab-btn" onclick="switchLlmTab(event,'llm-diagnostics')">Diagnostics</button>
           </div>
+          <div class="tab-divider"></div>
           <div id="llm-controls" class="tab-pane active">
             <button class="btn success" onclick="runLiteLLM('start')">▶ Start (launchd)</button>
             <button class="btn danger"  onclick="runLiteLLM('kill')">⏹ Kill Server</button>
