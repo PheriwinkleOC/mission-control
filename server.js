@@ -114,8 +114,8 @@ const server = http.createServer((req, res) => {
       height: 60px;
       display: flex;
       align-items: center;
-      padding: 0 1rem;
-      justify-content: space-between;
+      padding: 0 0.75rem;
+      gap: 0.5rem;
       border-bottom: 1px solid rgba(59,130,246,0.3);
       flex-shrink: 0;
     }
@@ -129,9 +129,6 @@ const server = http.createServer((req, res) => {
       overflow: hidden;
     }
     #sidebar.collapsed .sidebar-header .logo-text { opacity: 0; width: 0; }
-
-    .header-actions { display: flex; gap: 0.25rem; align-items: center; }
-    #sidebar.collapsed .header-actions { width: 100%; justify-content: center; }
 
     .icon-btn {
       background: none; border: none; color: inherit; cursor: pointer;
@@ -233,19 +230,20 @@ const server = http.createServer((req, res) => {
     .sidebar-footer {
       flex-shrink: 0;
       border-top: 1px solid rgba(59,130,246,0.3);
-      padding: 0.5rem 0;
+      padding: 0.85rem 0.75rem;
+      display: flex; justify-content: flex-start; align-items: center;
     }
     body.light .sidebar-footer { border-top-color: rgba(29,78,216,0.3); }
     .theme-toggle-btn {
-      width: 100%; padding: 0.65rem 0;
+      width: 36px; height: 36px;
       display: flex; align-items: center; justify-content: center;
-      background: none; border: none; color: inherit;
+      background: none; border: none; border-radius: 6px; color: inherit;
       cursor: pointer; user-select: none;
       -webkit-appearance: none; appearance: none; transition: background 0.2s;
     }
     .theme-toggle-btn:hover { background: var(--bg-hover-dark); }
     body.light .theme-toggle-btn:hover { background: var(--bg-hover-light); }
-    .theme-toggle-btn .icon { position: static; font-size: 1.3rem; line-height: 1; }
+    .theme-toggle-btn .icon { position: static; font-size: 1.3rem; line-height: 1; transform: none; top: auto; left: auto; }
     .theme-toggle-btn .label { display: none; }
 
     /* ── OpenClaw Panel ──────────────────────────────── */
@@ -423,10 +421,8 @@ const server = http.createServer((req, res) => {
 <body>
   <nav id="sidebar">
     <div class="sidebar-header">
+      <button id="toggle-sidebar-btn" class="icon-btn" onclick="toggleSidebar()" title="Toggle Sidebar">☰</button>
       <span class="logo-text">Mission Control 🦞</span>
-      <div class="header-actions">
-        <button id="toggle-sidebar-btn" class="icon-btn" onclick="toggleSidebar()" title="Toggle Sidebar">☰</button>
-      </div>
     </div>
     <div id="menu-container">
       <ul id="menu-items">
