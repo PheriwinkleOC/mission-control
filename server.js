@@ -141,9 +141,10 @@ const server = http.createServer((req, res) => {
 
     /* ── LiteLLM Panel ───────────────────────────────── */
     .dashboard-grid {
-      display: grid; grid-template-rows: auto 1fr 1fr;
+      display: flex; flex-direction: column;
       gap: 1rem; height: 100%; padding-bottom: 2rem;
     }
+    .dashboard-grid .console-window { flex: 1; min-height: 0; }
     .action-bar {
       display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
       background: rgba(0,0,0,0.2); padding: 0.6rem 1rem;
@@ -424,27 +425,30 @@ const server = http.createServer((req, res) => {
           <div class="tab-nav">
             <button class="tab-btn active" onclick="switchLlmTab(event,'llm-controls')">Controls</button>
             <button class="tab-btn" onclick="switchLlmTab(event,'llm-diagnostics')">Diagnostics</button>
+            <button class="tab-btn" onclick="switchLlmTab(event,'llm-log')">Log</button>
           </div>
           <div class="tab-divider"></div>
           <div id="llm-controls" class="tab-pane active">
             <button class="btn success" onclick="runLiteLLM('start')">▶ Start (launchd)</button>
             <button class="btn danger"  onclick="runLiteLLM('kill')">⏹ Kill Server</button>
             <button class="btn" onclick="runLiteLLM('ps')">📊 Process Status</button>
-            <button class="btn" onclick="runLiteLLM('open-log')">🪟 Open Log App</button>
           </div>
           <div id="llm-diagnostics" class="tab-pane">
             <button class="btn" onclick="runLiteLLM('health')">🏥 Check Health</button>
             <button class="btn" onclick="runLiteLLM('test')">🧪 Test Model</button>
           </div>
+          <div id="llm-log" class="tab-pane">
+            <button class="btn" onclick="runLiteLLM('open-log')">🪟 Open Log App</button>
+          </div>
         </div>
-        <div class="console-window">
+        <div id="litellm-cmd-window" class="console-window">
           <div class="console-header">
             <span>COMMAND OUTPUT</span>
             <span id="litellm-status">Idle</span>
           </div>
           <div class="console-body" id="litellm-output">Waiting for command...</div>
         </div>
-        <div class="console-window">
+        <div id="litellm-log-window" class="console-window" style="display:none">
           <div class="console-header">
             <span>litellm.log (Tailing)</span>
             <button class="icon-btn" style="width:24px;height:24px;font-size:0.8rem;" onclick="fetchLiteLLMLogs()" title="Refresh">🔄</button>
@@ -599,6 +603,10 @@ const server = http.createServer((req, res) => {
       bar.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
       e.target.classList.add('active');
       document.getElementById(paneId).classList.add('active');
+      var isLog = paneId === 'llm-log';
+      document.getElementById('litellm-cmd-window').style.display = isLog ? 'none' : '';
+      document.getElementById('litellm-log-window').style.display = isLog ? '' : 'none';
+      if (isLog) fetchLiteLLMLogs();
     }
 
     async function runLiteLLM(action) {
