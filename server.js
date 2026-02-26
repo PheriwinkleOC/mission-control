@@ -23,12 +23,13 @@ const server = http.createServer((req, res) => {
     }
 
     const commands = {
-      'start':    './launchd_start_LiteLLM.command',
-      'kill':     './kill_LiteLLM.command',
-      'health':   './health_LiteLLM.command',
-      'ps':       './ps_LiteLLM.command',
-      'test':     './testModel_LiteLLM.command',
-      'open-log': 'open ./open_LiteLLM_Log.command'
+      'start':      './launchd_start_LiteLLM.command',
+      'kill':       './kill_LiteLLM.command',
+      'health':     './health_LiteLLM.command',
+      'ps':         './ps_LiteLLM.command',
+      'test':       './testModel_LiteLLM.command',
+      'open-log':   'open ./open_LiteLLM_Log.command',
+      'model-info': 'curl -s "http://localhost:4000/v1/model/info"'
     };
 
     if (commands[action]) {
@@ -425,6 +426,7 @@ const server = http.createServer((req, res) => {
           <div class="tab-nav">
             <button class="tab-btn active" onclick="switchLlmTab(event,'llm-controls')">Controls</button>
             <button class="tab-btn" onclick="switchLlmTab(event,'llm-diagnostics')">Diagnostics</button>
+            <button class="tab-btn" onclick="switchLlmTab(event,'llm-models')">Models</button>
             <button class="tab-btn" onclick="switchLlmTab(event,'llm-log')">Log</button>
           </div>
           <div class="tab-divider"></div>
@@ -436,6 +438,9 @@ const server = http.createServer((req, res) => {
           <div id="llm-diagnostics" class="tab-pane">
             <button class="btn" onclick="runLiteLLM('health')">🏥 Check Health</button>
             <button class="btn" onclick="runLiteLLM('test')">🧪 Test Model</button>
+          </div>
+          <div id="llm-models" class="tab-pane">
+            <button class="btn" onclick="runLiteLLM('model-info')">↺ Refresh</button>
           </div>
           <div id="llm-log" class="tab-pane">
             <button class="btn" onclick="runLiteLLM('open-log')">🪟 Open Log App</button>
@@ -607,6 +612,7 @@ const server = http.createServer((req, res) => {
       document.getElementById('litellm-cmd-window').style.display = isLog ? 'none' : '';
       document.getElementById('litellm-log-window').style.display = isLog ? '' : 'none';
       if (isLog) fetchLiteLLMLogs();
+      if (paneId === 'llm-models') runLiteLLM('model-info');
     }
 
     function renderHealthReport(div, raw) {
@@ -691,6 +697,97 @@ const server = http.createServer((req, res) => {
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    function renderModelsReport(div, raw) {
+      var data;
+      try { data = JSON.parse(raw); } catch(e) { return false; }
+      if (!data || !Array.isArray(data.data)) return false;
+      var items = data.data;
+
+      // Group by underlying model; also track per-alias underlying models for mixed-routing detection
+      var byUnderlying = {};
+      var aliasRoutes = {};
+      items.forEach(function(item) {
+        var alias      = item.model_name || '?';
+        var underlying = (item.litellm_params && item.litellm_params.model) || '?';
+        var rpm        = (item.litellm_params && item.litellm_params.rpm)   || null;
+        var mi         = item.model_info || {};
+        if (!byUnderlying[underlying]) byUnderlying[underlying] = { aliases: {}, mi: mi };
+        var grp = byUnderlying[underlying].aliases;
+        if (!grp[alias]) grp[alias] = { count: 0, rpm: rpm };
+        grp[alias].count++;
+        if (!aliasRoutes[alias]) aliasRoutes[alias] = {};
+        aliasRoutes[alias][underlying] = true;
+      });
+
+      var mixedAliases = {};
+      Object.keys(aliasRoutes).forEach(function(alias) {
+        var us = Object.keys(aliasRoutes[alias]);
+        if (us.length > 1) mixedAliases[alias] = us;
+      });
+
+      var uKeys     = Object.keys(byUnderlying).sort();
+      var aliasCount = Object.keys(aliasRoutes).length;
+      var now = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+
+      var h = '<span style="color:#64748b">MODELS  ·  ' + escH(now) + '</span>\\n';
+      h += '<span style="color:#64748b">' + aliasCount + ' aliases  ·  ' + uKeys.length + ' underlying models  ·  ' + items.length + ' instances total</span>\\n\\n';
+
+      if (Object.keys(mixedAliases).length) {
+        h += '<span style="color:#f59e0b;font-weight:700">⚠ MIXED ROUTING</span><span style="color:#94a3b8"> — aliases routing to multiple underlying models:</span>\\n';
+        Object.keys(mixedAliases).forEach(function(alias) {
+          h += '  <span style="color:#fbbf24">' + escH(alias) + '</span><span style="color:#64748b"> → ' + mixedAliases[alias].map(escH).join(', ') + '</span>\\n';
+        });
+        h += '\\n';
+      }
+
+      uKeys.forEach(function(underlying) {
+        var grp      = byUnderlying[underlying];
+        var mi       = grp.mi;
+        var provider = mi.litellm_provider || underlying.split('/')[0] || '?';
+        var ctx      = llmFmtCtx(mi.max_tokens);
+        var cost     = llmFmtCost(mi.input_cost_per_token, mi.output_cost_per_token);
+        var caps     = llmFmtCaps(mi);
+        h += '<span style="color:#e2e8f0;font-weight:700">' + escH(underlying) + '</span>\\n';
+        h += '  <span style="color:#64748b">provider:' + escH(provider) + '  ctx:' + escH(ctx) + '  ' + escH(cost) + (caps ? '  ' + escH(caps) : '') + '</span>\\n';
+        Object.keys(grp.aliases).sort().forEach(function(alias) {
+          var info  = grp.aliases[alias];
+          var mixed = mixedAliases[alias] ? ' <span style="color:#f59e0b"> ⚠ mixed</span>' : '';
+          h += '  <span style="color:#38bdf8">' + escH(alias) + '</span>';
+          h += '<span style="color:#475569">  ×' + info.count;
+          if (info.rpm) h += '  rpm:' + info.rpm;
+          h += '</span>' + mixed + '\\n';
+        });
+        h += '\\n';
+      });
+
+      div.innerHTML = h;
+      return true;
+    }
+
+    function llmFmtCtx(n) {
+      if (!n) return '?';
+      var m = n / 1000000;
+      if (m >= 1) return (m === Math.floor(m) ? m : m.toFixed(1)) + 'M';
+      return Math.round(n / 1000) + 'K';
+    }
+
+    function llmFmtCost(inp, out) {
+      if (!inp && !out) return 'free';
+      var i = inp ? '$' + (inp * 1000000).toFixed(2) : '$0.00';
+      var o = out ? '$' + (out * 1000000).toFixed(2) : '$0.00';
+      return i + ' / ' + o + ' per 1M tokens';
+    }
+
+    function llmFmtCaps(mi) {
+      var c = [];
+      if (mi.supports_reasoning)        c.push('reasoning');
+      if (mi.supports_vision)           c.push('vision');
+      if (mi.supports_function_calling) c.push('tools');
+      if (mi.supports_response_schema)  c.push('schema');
+      if (mi.supports_web_search)       c.push('search');
+      return c.join('  ');
+    }
+
     async function runLiteLLM(action) {
       var outputDiv  = document.getElementById('litellm-output');
       var statusSpan = document.getElementById('litellm-status');
@@ -700,6 +797,8 @@ const server = http.createServer((req, res) => {
         var response = await fetch('/api/litellm/' + action);
         var data = await response.json();
         if (action === 'health' && renderHealthReport(outputDiv, data.output || '')) {
+          statusSpan.textContent = 'Completed';
+        } else if (action === 'model-info' && renderModelsReport(outputDiv, data.output || '')) {
           statusSpan.textContent = 'Completed';
         } else {
           outputDiv.textContent  = data.output || 'No output.';
