@@ -609,6 +609,88 @@ const server = http.createServer((req, res) => {
       if (isLog) fetchLiteLLMLogs();
     }
 
+    function renderHealthReport(div, raw) {
+      var data;
+      try { data = JSON.parse(raw); } catch(e) { return false; }
+      if (!data || (!data.healthy_endpoints && !data.unhealthy_endpoints)) return false;
+      var healthy   = data.healthy_endpoints   || [];
+      var unhealthy = data.unhealthy_endpoints || [];
+      function tally(arr) {
+        var counts = {}, rpms = {};
+        arr.forEach(function(ep) {
+          var m = ep.model || '?';
+          counts[m] = (counts[m] || 0) + 1;
+          if (ep.rpm && !rpms[m]) rpms[m] = ep.rpm;
+        });
+        return { counts: counts, rpms: rpms };
+      }
+      var hd = tally(healthy), ud = tally(unhealthy);
+      var errMap = {};
+      unhealthy.forEach(function(ep) {
+        var m = ep.model || '?';
+        if (!errMap[m]) errMap[m] = parseLlmErr(ep.error || '');
+      });
+      var hKeys = Object.keys(hd.counts).sort();
+      var uKeys = Object.keys(ud.counts).sort();
+      var now = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+      var h = '<span style="color:#64748b">HEALTH CHECK  ·  ' + escH(now) + '</span>\\n\\n';
+      h += '<span style="color:#e2e8f0;font-weight:600">Summary</span>  ';
+      h += '<span style="color:#22c55e">' + healthy.length + ' healthy</span>';
+      h += '<span style="color:#64748b">  /  </span>';
+      h += '<span style="color:#ef4444">' + unhealthy.length + ' unhealthy</span>';
+      h += '<span style="color:#64748b">   (' + hKeys.length + ' unique healthy · ' + uKeys.length + ' with errors)</span>\\n\\n';
+      if (hKeys.length) {
+        h += '<span style="color:#22c55e;font-weight:700">✓ HEALTHY</span>';
+        h += '<span style="color:#64748b">  ' + hKeys.length + ' model' + (hKeys.length !== 1 ? 's' : '') + '  ·  ' + healthy.length + ' instance' + (healthy.length !== 1 ? 's' : '') + '</span>\\n';
+        hKeys.forEach(function(m) {
+          h += '  <span style="color:#38bdf8">' + escH(m) + '</span>';
+          h += '<span style="color:#475569">  ×' + hd.counts[m];
+          if (hd.rpms[m]) h += '  rpm:' + hd.rpms[m];
+          h += '</span>\\n';
+        });
+        h += '\\n';
+      }
+      if (uKeys.length) {
+        h += '<span style="color:#ef4444;font-weight:700">✗ UNHEALTHY</span>';
+        h += '<span style="color:#64748b">  ' + uKeys.length + ' model' + (uKeys.length !== 1 ? 's' : '') + '  ·  ' + unhealthy.length + ' instance' + (unhealthy.length !== 1 ? 's' : '') + '</span>\\n';
+        uKeys.forEach(function(m) {
+          var e = errMap[m] || { type: 'Error', msg: '' };
+          h += '  <span style="color:#fca5a5">' + escH(m) + '</span>';
+          h += '<span style="color:#475569">  ×' + ud.counts[m] + '</span>';
+          h += '  <span style="color:#f87171;font-weight:700">[' + escH(e.type) + ']</span>\\n';
+          if (e.msg) h += '  <span style="color:#94a3b8">  └ ' + escH(e.msg) + '</span>\\n';
+        });
+      }
+      div.innerHTML = h;
+      return true;
+    }
+
+    function parseLlmErr(err) {
+      if (!err) return { type: 'Unknown', msg: '' };
+      var tm = err.match(/litellm\\.([A-Za-z]+):/);
+      var type = tm ? tm[1] : (err.split(':')[0].split('.').pop() || 'Error');
+      var clean = err.split('\\nstack trace:')[0];
+      var di = clean.indexOf(' - ');
+      var msg = '';
+      if (di >= 0) {
+        var js = clean.slice(di + 3).trim();
+        try {
+          var pe = JSON.parse(js);
+          var ev = pe.error || {};
+          var raw = (ev.metadata && ev.metadata.raw) || '';
+          msg = (raw || ev.message || js).slice(0, 200);
+          if (ev.code && !msg.includes(String(ev.code))) msg = '(' + ev.code + ')  ' + msg;
+        } catch(ex) { msg = js.slice(0, 200); }
+      } else {
+        msg = clean.slice(0, 200);
+      }
+      return { type: type, msg: msg };
+    }
+
+    function escH(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
     async function runLiteLLM(action) {
       var outputDiv  = document.getElementById('litellm-output');
       var statusSpan = document.getElementById('litellm-status');
@@ -617,8 +699,12 @@ const server = http.createServer((req, res) => {
       try {
         var response = await fetch('/api/litellm/' + action);
         var data = await response.json();
-        outputDiv.textContent  = data.output || 'No output.';
-        statusSpan.textContent = 'Completed';
+        if (action === 'health' && renderHealthReport(outputDiv, data.output || '')) {
+          statusSpan.textContent = 'Completed';
+        } else {
+          outputDiv.textContent  = data.output || 'No output.';
+          statusSpan.textContent = 'Completed';
+        }
         setTimeout(fetchLiteLLMLogs, 1000);
       } catch(err) {
         outputDiv.textContent  = 'Error: ' + err.message;
