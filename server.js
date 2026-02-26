@@ -41,6 +41,31 @@ const server = http.createServer((req, res) => {
     }
   }
 
+  // --- OpenClaw API Endpoints ---
+  if (req.url.startsWith('/api/openclaw/')) {
+    const action = req.url.split('/')[3];
+    const ocCmds = {
+      'gateway-status':        'openclaw gateway status',
+      'status':                'openclaw status',
+      'skills-list':           'openclaw skills list',
+      'channels-list':         'openclaw channels list',
+      'channels-capabilities': 'openclaw channels capabilities',
+      'cron-list':             'openclaw cron list',
+      'gateway-restart':       'openclaw gateway restart',
+      'gateway-stop':          'openclaw gateway stop',
+      'gateway-install':       'openclaw gateway install',
+      'gateway-uninstall':     'openclaw gateway uninstall',
+    };
+    if (ocCmds[action]) {
+      exec(ocCmds[action], { timeout: 30000, env: Object.assign({}, process.env, { FORCE_COLOR: '1', CLICOLOR_FORCE: '1' }) }, (error, stdout, stderr) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ output: stdout || stderr || (error ? error.message : 'Done.') }));
+      });
+      return;
+    }
+    res.writeHead(404); res.end('Unknown command'); return;
+  }
+
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(`
 <!DOCTYPE html>
@@ -212,22 +237,39 @@ const server = http.createServer((req, res) => {
     }
     body.light .sidebar-footer { border-top-color: rgba(29,78,216,0.3); }
     .theme-toggle-btn {
-      width: 100%;
-      padding: 0.75rem 1rem 0.75rem 1rem;
-      display: flex; align-items: center; gap: 0.75rem;
+      width: 100%; padding: 0.65rem 0;
+      display: flex; align-items: center; justify-content: center;
       background: none; border: none; color: inherit;
-      cursor: pointer; text-align: left; user-select: none;
-      -webkit-appearance: none; appearance: none;
-      transition: background 0.2s;
+      cursor: pointer; user-select: none;
+      -webkit-appearance: none; appearance: none; transition: background 0.2s;
     }
     .theme-toggle-btn:hover { background: var(--bg-hover-dark); }
     body.light .theme-toggle-btn:hover { background: var(--bg-hover-light); }
-    .theme-toggle-btn .icon {
-      min-width: 24px; font-size: 1.2rem;
-      flex-shrink: 0; text-align: center; display: block;
+    .theme-toggle-btn .icon { position: static; font-size: 1.3rem; line-height: 1; }
+    .theme-toggle-btn .label { display: none; }
+
+    /* ── OpenClaw Panel ──────────────────────────────── */
+    .oc-toolbar {
+      flex-shrink: 0; display: flex; flex-direction: column; gap: 0.5rem;
+      background: rgba(0,0,0,0.2); padding: 0.75rem 1rem;
+      border-radius: 8px; border: 1px solid rgba(59,130,246,0.2);
     }
-    #sidebar.collapsed .theme-toggle-btn { justify-content: center; }
-    #sidebar.collapsed .theme-toggle-btn .label { opacity: 0; width: 0; overflow: hidden; }
+    body.light .oc-toolbar { background: rgba(0,0,0,0.05); }
+    .oc-group { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .oc-group-label {
+      font-size: 0.7rem; font-weight: 700; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 0.07em; flex-shrink: 0; min-width: 6rem;
+    }
+    .oc-divider { height: 1px; background: rgba(59,130,246,0.2); }
+    .oc-confirm-bar {
+      display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+      padding: 0.5rem 0.75rem;
+      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.35); border-radius: 6px;
+    }
+    .oc-confirm-text { color: #fca5a5; font-weight: 600; flex: 1; font-size: 0.9rem; }
+    .btn.warning { border-color: rgba(245,158,11,0.5); color: #f59e0b; }
+    .btn.warning:hover { background: rgba(245,158,11,0.2); }
+    #oc-output { font-family: 'SF Mono','Menlo','Monaco','Consolas',monospace; word-break: normal; color: #e2e8f0; }
 
     /* ── Terminal Panel ──────────────────────────────── */
     #xterm.panel.active {
@@ -389,7 +431,7 @@ const server = http.createServer((req, res) => {
     <div id="menu-container">
       <ul id="menu-items">
         <li class="menu-item active" data-panel="dashboard"><span class="icon">🚀</span><span class="label">Dashboard</span></li>
-        <li class="menu-item" data-panel="openclaw"><span class="icon">⚙️</span><span class="label">OpenClaw</span></li>
+        <li class="menu-item" data-panel="openclaw"><span class="icon">🦞</span><span class="label">OpenClaw</span></li>
         <li class="menu-item" data-panel="gateway"><span class="icon">🔌</span><span class="label">Gateway</span></li>
         <li class="menu-item" data-panel="sessions"><span class="icon">📱</span><span class="label">Sessions</span></li>
         <li class="menu-item" data-panel="skills"><span class="icon">🛠️</span><span class="label">Skills</span></li>
@@ -403,7 +445,7 @@ const server = http.createServer((req, res) => {
     <div class="sidebar-footer">
       <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()">
         <span class="icon">🌙</span>
-        <span class="label">Dark Mode</span>
+        <span class="label">Switch to Light</span>
       </button>
     </div>
   </nav>
@@ -413,7 +455,41 @@ const server = http.createServer((req, res) => {
       <h1>🚀 Mission Control v1.0</h1>
       <p>Real shell terminal with professional controls.</p>
     </section>
-    <section id="openclaw" class="panel"><h1>⚙️ OpenClaw Overview</h1><p>Select a child item for details.</p></section>
+    <section id="openclaw" class="panel">
+      <div class="dashboard-grid">
+        <div class="oc-toolbar">
+          <div class="oc-group">
+            <span class="oc-group-label">Status &amp; Info</span>
+            <button class="btn" onclick="runOC('gateway-status')">Gateway Status</button>
+            <button class="btn" onclick="runOC('status')">Status</button>
+            <button class="btn" onclick="runOC('skills-list')">Skills</button>
+            <button class="btn" onclick="runOC('channels-list')">Channels</button>
+            <button class="btn" onclick="runOC('channels-capabilities')">Capabilities</button>
+            <button class="btn" onclick="runOC('cron-list')">Cron</button>
+          </div>
+          <div class="oc-divider"></div>
+          <div class="oc-group">
+            <span class="oc-group-label">Gateway Control</span>
+            <button class="btn warning" onclick="confirmOC('gateway-restart','gateway restart')">Restart</button>
+            <button class="btn danger"  onclick="confirmOC('gateway-stop','gateway stop')">Stop</button>
+            <button class="btn"         onclick="confirmOC('gateway-install','gateway install')">Install</button>
+            <button class="btn danger"  onclick="confirmOC('gateway-uninstall','gateway uninstall')">Uninstall</button>
+          </div>
+          <div id="oc-confirm-bar" class="oc-confirm-bar" style="display:none">
+            <span class="oc-confirm-text" id="oc-confirm-text">Confirm?</span>
+            <button class="btn danger" onclick="executeConfirmedOC()">✓ Run It</button>
+            <button class="btn" onclick="cancelOCConfirm()">✗ Cancel</button>
+          </div>
+        </div>
+        <div class="console-window" style="flex:1;min-height:0">
+          <div class="console-header">
+            <span>OUTPUT</span>
+            <button class="icon-btn" style="width:24px;height:24px;font-size:0.85rem;" onclick="clearOCOutput()" title="Clear output">✕</button>
+          </div>
+          <div class="console-body" id="oc-output" data-pristine="1"><span style="color:#94a3b8">Ready — click a command above.</span></div>
+        </div>
+      </div>
+    </section>
     <section id="gateway" class="panel"><h1>🔌 Gateway</h1><p>Status coming live.</p></section>
     <section id="sessions" class="panel"><h1>📱 Sessions</h1><p>List/spawn.</p></section>
     <section id="skills" class="panel"><h1>🛠️ Skills</h1><p>Browser.</p></section>
@@ -592,13 +668,150 @@ const server = http.createServer((req, res) => {
       localStorage.theme = isLight ? 'light' : 'dark';
       var btn = document.getElementById('themeToggleBtn');
       btn.querySelector('.icon').textContent  = isLight ? '☀️' : '🌙';
-      btn.querySelector('.label').textContent = isLight ? 'Light Mode' : 'Dark Mode';
+      btn.querySelector('.label').textContent = isLight ? 'Switch to Dark' : 'Switch to Light';
     }
 
     function toggleSidebar() {
       var sidebar = document.getElementById('sidebar');
       sidebar.classList.toggle('collapsed');
       localStorage.sidebarCollapsed = sidebar.classList.contains('collapsed');
+    }
+
+    /* ── OpenClaw ──────────────────────────────────── */
+    var ocCmdLabels = {
+      'gateway-status':        'openclaw gateway status',
+      'status':                'openclaw status',
+      'skills-list':           'openclaw skills list',
+      'channels-list':         'openclaw channels list',
+      'channels-capabilities': 'openclaw channels capabilities',
+      'cron-list':             'openclaw cron list',
+      'gateway-restart':       'openclaw gateway restart',
+      'gateway-stop':          'openclaw gateway stop',
+      'gateway-install':       'openclaw gateway install',
+      'gateway-uninstall':     'openclaw gateway uninstall',
+    };
+    var ocPending = null;
+
+    function ansi256ToHex(n) {
+      if (n < 16) {
+        var std = ['#000000','#800000','#008000','#808000','#000080','#800080','#008080','#c0c0c0',
+                   '#808080','#ff0000','#00ff00','#ffff00','#0000ff','#ff00ff','#00ffff','#ffffff'];
+        return std[n] || '#ffffff';
+      }
+      if (n > 231) {
+        var g = (8 + (n - 232) * 10).toString(16);
+        if (g.length < 2) g = '0' + g;
+        return '#' + g + g + g;
+      }
+      var idx = n - 16;
+      var b = idx % 6; idx = Math.floor(idx / 6);
+      var gr = idx % 6; var r = Math.floor(idx / 6);
+      function ch(v) { var x = (v === 0 ? 0 : 55 + 40 * v).toString(16); return x.length < 2 ? '0'+x : x; }
+      return '#' + ch(r) + ch(gr) + ch(b);
+    }
+
+    function ansiToHtml(raw) {
+      var fg16 = {
+        '30':'#555','31':'#e06c75','32':'#98c379','33':'#e5c07b',
+        '34':'#61afef','35':'#c678dd','36':'#56b6c2','37':'#abb2bf',
+        '90':'#888','91':'#ff7b7b','92':'#b5e890','93':'#ffd080',
+        '94':'#8abff0','95':'#d9a0ff','96':'#80d9e3','97':'#ffffff'
+      };
+      var ESC = '\\x1b';
+      var out = '', openSpan = false, fg = null, bold = false, i = 0;
+      function closeSpan() { if (openSpan) { out += '</span>'; openSpan = false; } }
+      function applyStyle() {
+        var css = '';
+        if (fg) css += 'color:' + fg + ';';
+        if (bold) css += 'font-weight:700;';
+        if (css) { out += '<span style="' + css + '">'; openSpan = true; }
+      }
+      while (i < raw.length) {
+        var c = raw[i];
+        if (c === ESC && raw[i+1] === '[') {
+          var j = i + 2;
+          while (j < raw.length && !(raw.charCodeAt(j) >= 64 && raw.charCodeAt(j) <= 126)) j++;
+          if (raw[j] === 'm') {
+            var codes = raw.slice(i+2, j).split(';');
+            closeSpan();
+            for (var ci = 0; ci < codes.length; ci++) {
+              var n = parseInt(codes[ci], 10) || 0;
+              if (n === 0) { fg = null; bold = false; }
+              else if (n === 1) { bold = true; }
+              else if (n === 22) { bold = false; }
+              else if (n === 39) { fg = null; }
+              else if ((n === 38 || n === 48) && codes[ci+1] === '5' && codes[ci+2] !== undefined) {
+                if (n === 38) fg = ansi256ToHex(parseInt(codes[ci+2], 10));
+                ci += 2;
+              } else if (fg16[String(n)]) { fg = fg16[String(n)]; }
+            }
+            applyStyle();
+          }
+          i = j + 1;
+        } else if (c === ESC) {
+          i += 2;
+        } else if (c.charCodeAt(0) === 13) {
+          i++;
+        } else {
+          if (c === '&') out += '&amp;';
+          else if (c === '<') out += '&lt;';
+          else if (c === '>') out += '&gt;';
+          else out += c;
+          i++;
+        }
+      }
+      closeSpan();
+      return out;
+    }
+
+    async function runOC(action) {
+      var out = document.getElementById('oc-output');
+      if (out.dataset.pristine) { out.innerHTML = ''; delete out.dataset.pristine; }
+      else {
+        var sep = document.createElement('div');
+        sep.style.cssText = 'height:3px;background:linear-gradient(90deg,rgba(59,130,246,0.55),rgba(59,130,246,0.05));border-radius:2px;margin:1.25rem 0 0.6rem;';
+        out.appendChild(sep);
+      }
+      var now = new Date().toLocaleTimeString('en-US', { timeStyle: 'short' });
+      var hdr = document.createElement('div');
+      hdr.innerHTML = '<span style="color:#38bdf8;font-weight:700">$ ' + escH(ocCmdLabels[action] || action) + '</span>  <span style="color:#94a3b8">' + now + '</span>';
+      out.appendChild(hdr);
+      var result = document.createElement('div');
+      result.style.cssText = 'color:#94a3b8;padding-left:0.5rem;';
+      result.textContent = 'Running\u2026';
+      out.appendChild(result);
+      out.scrollTop = out.scrollHeight;
+      try {
+        var resp = await fetch('/api/openclaw/' + action);
+        var data = await resp.json();
+        result.style.color = '';
+        result.innerHTML = ansiToHtml(data.output || '(no output)');
+      } catch(e) {
+        result.style.color = '#f87171';
+        result.textContent = 'Error: ' + e.message;
+      }
+      out.scrollTop = out.scrollHeight;
+    }
+
+    function confirmOC(action, label) {
+      ocPending = action;
+      document.getElementById('oc-confirm-text').textContent = 'Run: openclaw ' + label + ' — are you sure?';
+      document.getElementById('oc-confirm-bar').style.display = 'flex';
+    }
+
+    function executeConfirmedOC() {
+      if (ocPending) { var a = ocPending; cancelOCConfirm(); runOC(a); }
+    }
+
+    function cancelOCConfirm() {
+      ocPending = null;
+      document.getElementById('oc-confirm-bar').style.display = 'none';
+    }
+
+    function clearOCOutput() {
+      var out = document.getElementById('oc-output');
+      out.innerHTML = '<span style="color:#94a3b8">Cleared — click a command above.</span>';
+      out.dataset.pristine = '1';
     }
 
     /* ── LiteLLM ───────────────────────────────────── */
@@ -1070,7 +1283,7 @@ const server = http.createServer((req, res) => {
       document.body.classList.add('light');
       var btn = document.getElementById('themeToggleBtn');
       btn.querySelector('.icon').textContent  = '☀️';
-      btn.querySelector('.label').textContent = 'Light Mode';
+      btn.querySelector('.label').textContent = 'Switch to Dark';
     }
     if (localStorage.sidebarCollapsed === 'true') {
       document.getElementById('sidebar').classList.add('collapsed');
