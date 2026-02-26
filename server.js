@@ -185,15 +185,30 @@ const server = http.createServer((req, res) => {
     .console-body.error { color: #f87171; }
     .console-body.log   { color: #cbd5e1; }
 
-    /* ── Theme Toggle ────────────────────────────────── */
-    .theme-toggle {
-      position: fixed; top: 1rem; right: 1rem; z-index: 1000;
-      width: 48px; height: 48px; border: none; border-radius: 50%;
-      cursor: pointer; background: rgba(59,130,246,0.2); color: var(--text-dark);
-      font-size: 1.2rem; display: flex; align-items: center;
-      justify-content: center; backdrop-filter: blur(10px);
+    /* ── Sidebar Footer (theme toggle) ──────────────────── */
+    .sidebar-footer {
+      flex-shrink: 0;
+      border-top: 1px solid rgba(59,130,246,0.3);
+      padding: 0.5rem 0;
     }
-    body.light .theme-toggle { background: rgba(29,78,216,0.2); color: var(--text-light); }
+    body.light .sidebar-footer { border-top-color: rgba(29,78,216,0.3); }
+    .theme-toggle-btn {
+      width: 100%;
+      padding: 0.75rem 1rem 0.75rem 1rem;
+      display: flex; align-items: center; gap: 0.75rem;
+      background: none; border: none; color: inherit;
+      cursor: pointer; text-align: left; user-select: none;
+      -webkit-appearance: none; appearance: none;
+      transition: background 0.2s;
+    }
+    .theme-toggle-btn:hover { background: var(--bg-hover-dark); }
+    body.light .theme-toggle-btn:hover { background: var(--bg-hover-light); }
+    .theme-toggle-btn .icon {
+      min-width: 24px; font-size: 1.2rem;
+      flex-shrink: 0; text-align: center; display: block;
+    }
+    #sidebar.collapsed .theme-toggle-btn { justify-content: center; }
+    #sidebar.collapsed .theme-toggle-btn .label { opacity: 0; width: 0; overflow: hidden; }
 
     /* ── Terminal Panel ──────────────────────────────── */
     #xterm.panel.active {
@@ -216,18 +231,16 @@ const server = http.createServer((req, res) => {
       user-select: none;
     }
 
-    /* Traffic lights */
-    .traffic-lights { display: flex; gap: 7px; align-items: center; margin-right: 2px; }
-    .tl {
-      width: 13px; height: 13px; border-radius: 50%;
-      cursor: pointer; border: none; outline: none; flex-shrink: 0;
-      transition: filter 0.15s;
-      box-shadow: inset 0 1px 1px rgba(255,255,255,0.2), 0 1px 2px rgba(0,0,0,0.4);
+    /* Terminal action buttons */
+    .term-actions { display: flex; gap: 4px; align-items: center; }
+    .term-act-btn {
+      background: rgba(255,255,255,0.07); color: #ccc;
+      border: 1px solid rgba(255,255,255,0.15); border-radius: 5px;
+      padding: 3px 9px; font-size: 0.75rem; cursor: pointer;
+      transition: background 0.12s, color 0.12s; white-space: nowrap;
     }
-    .tl:hover { filter: brightness(1.25); }
-    .tl-red    { background: radial-gradient(circle at 40% 35%, #ff8a7a, #ff5f57); }
-    .tl-yellow { background: radial-gradient(circle at 40% 35%, #ffd97a, #febc2e); }
-    .tl-green  { background: radial-gradient(circle at 40% 35%, #62e87a, #28c840); }
+    .term-act-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
+    .term-act-btn.danger:hover { background: rgba(239,68,68,0.25); color: #fca5a5; border-color: rgba(239,68,68,0.4); }
 
     .toolbar-sep {
       width: 1px; height: 22px;
@@ -347,8 +360,6 @@ const server = http.createServer((req, res) => {
   </style>
 </head>
 <body>
-  <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme">🌙</button>
-
   <nav id="sidebar">
     <div class="sidebar-header">
       <span class="logo-text">Mission Control 🦞</span>
@@ -369,6 +380,12 @@ const server = http.createServer((req, res) => {
         <li class="menu-item" data-panel="mc-docs"><span class="icon">📚</span><span class="label">Docs</span></li>
         <li class="menu-item" data-panel="xterm"><span class="icon" style="font-family:monospace;font-weight:700;">&gt;_</span><span class="label">Terminal</span></li>
       </ul>
+    </div>
+    <div class="sidebar-footer">
+      <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()">
+        <span class="icon">🌙</span>
+        <span class="label">Dark Mode</span>
+      </button>
     </div>
   </nav>
 
@@ -418,11 +435,11 @@ const server = http.createServer((req, res) => {
     <section id="xterm" class="panel">
       <!-- Toolbar -->
       <div class="term-toolbar">
-        <!-- Traffic lights -->
-        <div class="traffic-lights">
-          <button class="tl tl-red"    title="Disconnect" onclick="killTerminal()"></button>
-          <button class="tl tl-yellow" title="Clear"      onclick="clearTerminal()"></button>
-          <button class="tl tl-green"  title="Reconnect"  onclick="reconnectTerminal()"></button>
+        <!-- Terminal actions -->
+        <div class="term-actions">
+          <button class="term-act-btn danger" onclick="killTerminal()">Disconnect</button>
+          <button class="term-act-btn"        onclick="clearTerminal()">Clear</button>
+          <button class="term-act-btn"        onclick="reconnectTerminal()">Reconnect</button>
         </div>
 
         <div class="toolbar-sep"></div>
@@ -432,12 +449,12 @@ const server = http.createServer((req, res) => {
           <span class="toolbar-lbl">Profile</span>
           <select class="profile-sel" id="termProfile" onchange="applyProfile(this.value)">
             <option value="" style="color:#555">&#8212; Custom &#8212;</option>
-            <option value="ocean"     selected>Ocean</option>
+            <option value="ocean">Ocean</option>
             <option value="matrix">Matrix</option>
             <option value="solarized">Solarized</option>
             <option value="monokai">Monokai</option>
             <option value="dracula">Dracula</option>
-            <option value="basic">Basic</option>
+            <option value="basic" selected>Basic</option>
           </select>
         </div>
 
@@ -501,11 +518,11 @@ const server = http.createServer((req, res) => {
     var termWS       = null;
     var currentFontSize = 14;
     var currentTheme = {
-      background:   '#0f172a',
-      foreground:   '#38bdf8',
-      cursor:       '#38bdf8',
-      cursorAccent: '#0f172a',
-      selection:    'rgba(56,189,248,0.25)'
+      background:   '#1d1f21',
+      foreground:   '#c5c8c6',
+      cursor:       '#c5c8c6',
+      cursorAccent: '#1d1f21',
+      selection:    'rgba(197,200,198,0.25)'
     };
 
     var PROFILES = {
@@ -538,7 +555,9 @@ const server = http.createServer((req, res) => {
       document.body.classList.toggle('light');
       var isLight = document.body.classList.contains('light');
       localStorage.theme = isLight ? 'light' : 'dark';
-      document.querySelector('.theme-toggle').textContent = isLight ? '☀️' : '🌙';
+      var btn = document.getElementById('themeToggleBtn');
+      btn.querySelector('.icon').textContent  = isLight ? '☀️' : '🌙';
+      btn.querySelector('.label').textContent = isLight ? 'Light Mode' : 'Dark Mode';
     }
 
     function toggleSidebar() {
@@ -789,7 +808,7 @@ const server = http.createServer((req, res) => {
         activePicker = null;
       }
 
-      if (e.target.closest('.header-actions') || e.target.closest('.theme-toggle')) return;
+      if (e.target.closest('.header-actions') || e.target.closest('.theme-toggle-btn') || e.target.closest('.sidebar-footer')) return;
 
       var item = e.target.closest('.menu-item');
       if (!item) return;
@@ -822,7 +841,9 @@ const server = http.createServer((req, res) => {
     /* ── Restore persisted state ───────────────────── */
     if (localStorage.theme === 'light') {
       document.body.classList.add('light');
-      document.querySelector('.theme-toggle').textContent = '☀️';
+      var btn = document.getElementById('themeToggleBtn');
+      btn.querySelector('.icon').textContent  = '☀️';
+      btn.querySelector('.label').textContent = 'Light Mode';
     }
     if (localStorage.sidebarCollapsed === 'true') {
       document.getElementById('sidebar').classList.add('collapsed');
