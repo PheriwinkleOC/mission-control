@@ -120,7 +120,7 @@ const server = http.createServer((req, res) => {
     #menu-container { flex: 1; overflow-y: auto; padding-top: 0.5rem; }
     #menu-items { list-style: none; }
     .menu-item {
-      padding: 0.75rem 1rem 0.75rem 3.5rem;
+      padding: 0.75rem 1rem;
       cursor: pointer; position: relative;
       display: flex; align-items: center; gap: 0.75rem; user-select: none;
     }
@@ -128,10 +128,9 @@ const server = http.createServer((req, res) => {
     body.light .menu-item:hover { background: var(--bg-hover-light); }
     .menu-item.active { background: rgba(59,130,246,0.3); }
     body.light .menu-item.active { background: rgba(29,78,216,0.3); }
-    .icon { min-width: 24px; font-size: 1.2rem; flex-shrink: 0; text-align: center; }
-    .label { flex: 1; white-space: nowrap; opacity: 1; transition: opacity 0.2s; }
+    .icon {&#10;      position: absolute;&#10;      left: 1rem;&#10;      top: 50%;&#10;      transform: translateY(-50%);&#10;      width: 24px;&#10;      height: 24px;&#10;      font-size: 1.2rem;&#10;      flex-shrink: 0;&#10;      text-align: center;&#10;      line-height: 1;&#10;    }
+    .label { flex: 1; margin-left: 3rem; white-space: nowrap; opacity: 1; transition: opacity 0.2s; }
     #sidebar.collapsed .label { opacity: 0; }
-    #sidebar.collapsed .menu-item { padding: 0.75rem 1rem; }
 
     /* ── Main Content ────────────────────────────────── */
     #main { flex: 1; padding: 2rem; overflow-y: auto; }
@@ -375,7 +374,7 @@ const server = http.createServer((req, res) => {
         <li class="menu-item" data-panel="sessions"><span class="icon">📱</span><span class="label">Sessions</span></li>
         <li class="menu-item" data-panel="skills"><span class="icon">🛠️</span><span class="label">Skills</span></li>
         <li class="menu-item" data-panel="nodes"><span class="icon">🖥️</span><span class="label">Nodes</span></li>
-        <li class="menu-item" data-panel="litellm"><span class="icon">🧠</span><span class="label">LiteLLM</span></li>
+        <li class="menu-item" data-panel="litellm"><span class="icon">🔄</span><span class="label">LiteLLM Proxy</span></li>
         <li class="menu-item" data-panel="projects"><span class="icon">📁</span><span class="label">Projects</span></li>
         <li class="menu-item" data-panel="mc-docs"><span class="icon">📚</span><span class="label">Docs</span></li>
         <li class="menu-item" data-panel="xterm"><span class="icon" style="font-family:monospace;font-weight:700;">&gt;_</span><span class="label">Terminal</span></li>
