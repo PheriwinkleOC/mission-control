@@ -4,7 +4,9 @@
   "description": "Mission Control dashboard and CLI hub for OpenClaw operations",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "postinstall": "chmod +x node_modules/node-pty/prebuilds/darwin-x64/spawn-helper node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper 2>/dev/null || true"
   },
   "repository": {
     "type": "git",
@@ -17,5 +19,9 @@
   "bugs": {
     "url": "https://github.com/PheriwinkleOC/mission-control/issues"
   },
-  "homepage": "https://github.com/PheriwinkleOC/mission-control#readme"
+  "homepage": "https://github.com/PheriwinkleOC/mission-control#readme",
+  "dependencies": {
+    "node-pty": "^1.1.0",
+    "ws": "^8.19.0"
+  }
 }
