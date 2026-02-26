@@ -145,11 +145,26 @@ const server = http.createServer((req, res) => {
       gap: 1rem; height: 100%; padding-bottom: 2rem;
     }
     .action-bar {
-      display: flex; gap: 0.5rem; flex-wrap: wrap;
-      background: rgba(0,0,0,0.2); padding: 1rem;
+      background: rgba(0,0,0,0.2); padding: 0.75rem 1rem 1rem;
       border-radius: 8px; border: 1px solid rgba(59,130,246,0.2);
     }
     body.light .action-bar { background: rgba(0,0,0,0.05); border-color: rgba(29,78,216,0.2); }
+    .tab-nav {
+      display: flex; gap: 0; border-bottom: 1px solid rgba(59,130,246,0.25);
+      margin-bottom: 0.75rem;
+    }
+    .tab-btn {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: #64748b; padding: 0.35rem 1.1rem 0.5rem; cursor: pointer;
+      font-weight: 600; font-size: 0.85rem; transition: all 0.2s;
+    }
+    .tab-btn:hover { color: #38bdf8; }
+    .tab-btn.active { color: #38bdf8; border-bottom-color: #38bdf8; }
+    body.light .tab-btn { color: #94a3b8; }
+    body.light .tab-btn:hover { color: #1d4ed8; }
+    body.light .tab-btn.active { color: #1d4ed8; border-bottom-color: #1d4ed8; }
+    .tab-pane { display: none; flex-wrap: wrap; gap: 0.5rem; }
+    .tab-pane.active { display: flex; }
 
     .btn {
       background: rgba(59,130,246,0.2); color: var(--text-dark);
@@ -403,12 +418,20 @@ const server = http.createServer((req, res) => {
     <section id="litellm" class="panel">
       <div class="dashboard-grid">
         <div class="action-bar">
-          <button class="btn success" onclick="runLiteLLM('start')">▶ Start (launchd)</button>
-          <button class="btn danger"  onclick="runLiteLLM('kill')">⏹ Kill Server</button>
-          <button class="btn" onclick="runLiteLLM('health')">🏥 Check Health</button>
-          <button class="btn" onclick="runLiteLLM('ps')">📊 Process Status</button>
-          <button class="btn" onclick="runLiteLLM('test')">🧪 Test Model</button>
-          <button class="btn" onclick="runLiteLLM('open-log')">🪟 Open Log App</button>
+          <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchLlmTab(event,'llm-controls')">Controls</button>
+            <button class="tab-btn" onclick="switchLlmTab(event,'llm-diagnostics')">Diagnostics</button>
+          </div>
+          <div id="llm-controls" class="tab-pane active">
+            <button class="btn success" onclick="runLiteLLM('start')">▶ Start (launchd)</button>
+            <button class="btn danger"  onclick="runLiteLLM('kill')">⏹ Kill Server</button>
+            <button class="btn" onclick="runLiteLLM('ps')">📊 Process Status</button>
+            <button class="btn" onclick="runLiteLLM('open-log')">🪟 Open Log App</button>
+          </div>
+          <div id="llm-diagnostics" class="tab-pane">
+            <button class="btn" onclick="runLiteLLM('health')">🏥 Check Health</button>
+            <button class="btn" onclick="runLiteLLM('test')">🧪 Test Model</button>
+          </div>
         </div>
         <div class="console-window">
           <div class="console-header">
@@ -566,6 +589,14 @@ const server = http.createServer((req, res) => {
     }
 
     /* ── LiteLLM ───────────────────────────────────── */
+    function switchLlmTab(e, paneId) {
+      var bar = e.target.closest('.action-bar');
+      bar.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      bar.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
+      e.target.classList.add('active');
+      document.getElementById(paneId).classList.add('active');
+    }
+
     async function runLiteLLM(action) {
       var outputDiv  = document.getElementById('litellm-output');
       var statusSpan = document.getElementById('litellm-status');
