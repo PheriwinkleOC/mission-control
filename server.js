@@ -159,7 +159,7 @@ const server = http.createServer((req, res) => {
     body.light .tab-nav { background: rgba(0,0,0,0.1); }
     .tab-btn {
       background: none; border: none; border-radius: 4px;
-      color: #64748b; padding: 0.2rem 0.7rem; cursor: pointer;
+      color: #94a3b8; padding: 0.2rem 0.7rem; cursor: pointer;
       font-weight: 600; font-size: 0.8rem; transition: all 0.2s;
     }
     .tab-btn:hover { color: #38bdf8; }
@@ -639,18 +639,18 @@ const server = http.createServer((req, res) => {
       var hKeys = Object.keys(hd.counts).sort();
       var uKeys = Object.keys(ud.counts).sort();
       var now = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-      var h = '<span style="color:#64748b">HEALTH CHECK  ·  ' + escH(now) + '</span>\\n\\n';
+      var h = '<span style="color:#94a3b8">HEALTH CHECK  ·  ' + escH(now) + '</span>\\n\\n';
       h += '<span style="color:#e2e8f0;font-weight:600">Summary</span>  ';
       h += '<span style="color:#22c55e">' + healthy.length + ' healthy</span>';
-      h += '<span style="color:#64748b">  /  </span>';
+      h += '<span style="color:#94a3b8">  /  </span>';
       h += '<span style="color:#ef4444">' + unhealthy.length + ' unhealthy</span>';
-      h += '<span style="color:#64748b">   (' + hKeys.length + ' unique healthy · ' + uKeys.length + ' with errors)</span>\\n\\n';
+      h += '<span style="color:#94a3b8">   (' + hKeys.length + ' unique healthy · ' + uKeys.length + ' with errors)</span>\\n\\n';
       if (hKeys.length) {
         h += '<span style="color:#22c55e;font-weight:700">✓ HEALTHY</span>';
-        h += '<span style="color:#64748b">  ' + hKeys.length + ' model' + (hKeys.length !== 1 ? 's' : '') + '  ·  ' + healthy.length + ' instance' + (healthy.length !== 1 ? 's' : '') + '</span>\\n';
+        h += '<span style="color:#94a3b8">  ' + hKeys.length + ' model' + (hKeys.length !== 1 ? 's' : '') + '  ·  ' + healthy.length + ' instance' + (healthy.length !== 1 ? 's' : '') + '</span>\\n';
         hKeys.forEach(function(m) {
           h += '  <span style="color:#38bdf8">' + escH(m) + '</span>';
-          h += '<span style="color:#475569">  ×' + hd.counts[m];
+          h += '<span style="color:#94a3b8">  ×' + hd.counts[m];
           if (hd.rpms[m]) h += '  rpm:' + hd.rpms[m];
           h += '</span>\\n';
         });
@@ -658,11 +658,11 @@ const server = http.createServer((req, res) => {
       }
       if (uKeys.length) {
         h += '<span style="color:#ef4444;font-weight:700">✗ UNHEALTHY</span>';
-        h += '<span style="color:#64748b">  ' + uKeys.length + ' model' + (uKeys.length !== 1 ? 's' : '') + '  ·  ' + unhealthy.length + ' instance' + (unhealthy.length !== 1 ? 's' : '') + '</span>\\n';
+        h += '<span style="color:#94a3b8">  ' + uKeys.length + ' model' + (uKeys.length !== 1 ? 's' : '') + '  ·  ' + unhealthy.length + ' instance' + (unhealthy.length !== 1 ? 's' : '') + '</span>\\n';
         uKeys.forEach(function(m) {
           var e = errMap[m] || { type: 'Error', msg: '' };
           h += '  <span style="color:#fca5a5">' + escH(m) + '</span>';
-          h += '<span style="color:#475569">  ×' + ud.counts[m] + '</span>';
+          h += '<span style="color:#94a3b8">  ×' + ud.counts[m] + '</span>';
           h += '  <span style="color:#f87171;font-weight:700">[' + escH(e.type) + ']</span>\\n';
           if (e.msg) h += '  <span style="color:#94a3b8">  └ ' + escH(e.msg) + '</span>\\n';
         });
@@ -729,13 +729,13 @@ const server = http.createServer((req, res) => {
       var aliasCount = Object.keys(aliasRoutes).length;
       var now = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 
-      var h = '<span style="color:#64748b">MODELS  ·  ' + escH(now) + '</span>\\n';
-      h += '<span style="color:#64748b">' + aliasCount + ' aliases  ·  ' + uKeys.length + ' underlying models  ·  ' + items.length + ' instances total</span>\\n\\n';
+      var h = '<span style="color:#94a3b8">MODELS  ·  ' + escH(now) + '</span>\\n';
+      h += '<span style="color:#94a3b8">' + aliasCount + ' aliases  ·  ' + uKeys.length + ' underlying models  ·  ' + items.length + ' instances total</span>\\n\\n';
 
       if (Object.keys(mixedAliases).length) {
         h += '<span style="color:#f59e0b;font-weight:700">⚠ MIXED ROUTING</span><span style="color:#94a3b8"> — aliases routing to multiple underlying models:</span>\\n';
         Object.keys(mixedAliases).forEach(function(alias) {
-          h += '  <span style="color:#fbbf24">' + escH(alias) + '</span><span style="color:#64748b"> → ' + mixedAliases[alias].map(escH).join(', ') + '</span>\\n';
+          h += '  <span style="color:#fbbf24">' + escH(alias) + '</span><span style="color:#94a3b8"> → ' + mixedAliases[alias].map(escH).join(', ') + '</span>\\n';
         });
         h += '\\n';
       }
@@ -748,12 +748,12 @@ const server = http.createServer((req, res) => {
         var cost     = llmFmtCost(mi.input_cost_per_token, mi.output_cost_per_token);
         var caps     = llmFmtCaps(mi);
         h += '<span style="color:#e2e8f0;font-weight:700">' + escH(underlying) + '</span>\\n';
-        h += '  <span style="color:#64748b">provider:' + escH(provider) + '  ctx:' + escH(ctx) + '  ' + escH(cost) + (caps ? '  ' + escH(caps) : '') + '</span>\\n';
+        h += '  <span style="color:#94a3b8">provider:' + escH(provider) + '  ctx:' + escH(ctx) + '  ' + escH(cost) + (caps ? '  ' + escH(caps) : '') + '</span>\\n';
         Object.keys(grp.aliases).sort().forEach(function(alias) {
           var info  = grp.aliases[alias];
           var mixed = mixedAliases[alias] ? ' <span style="color:#f59e0b"> ⚠ mixed</span>' : '';
           h += '  <span style="color:#38bdf8">' + escH(alias) + '</span>';
-          h += '<span style="color:#475569">  ×' + info.count;
+          h += '<span style="color:#94a3b8">  ×' + info.count;
           if (info.rpm) h += '  rpm:' + info.rpm;
           h += '</span>' + mixed + '\\n';
         });
