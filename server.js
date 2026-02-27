@@ -566,13 +566,13 @@ const server = http.createServer((req, res) => {
         <div class="toolbar-grp">
           <span class="toolbar-lbl">Profile</span>
           <select class="profile-sel" id="termProfile" onchange="applyProfile(this.value)">
-            <option value="" style="color:#555">&#8212; Custom &#8212;</option>
-            <option value="ocean">Ocean</option>
-            <option value="matrix">Matrix</option>
-            <option value="solarized">Solarized</option>
-            <option value="monokai">Monokai</option>
-            <option value="dracula">Dracula</option>
             <option value="basic" selected>Basic</option>
+            <option value="dracula">Dracula</option>
+            <option value="matrix">Matrix</option>
+            <option value="monokai">Monokai</option>
+            <option value="ocean">Ocean</option>
+            <option value="solarized">Solarized</option>
+            <option value="" style="color:#555">&#8212; Custom &#8212;</option>
           </select>
         </div>
 
