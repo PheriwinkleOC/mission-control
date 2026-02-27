@@ -463,19 +463,6 @@ const server = http.createServer((req, res) => {
             <button class="btn" onclick="runOC('channels-capabilities')">Capabilities</button>
             <button class="btn" onclick="runOC('cron-list')">Cron</button>
           </div>
-          <div class="oc-divider"></div>
-          <div class="oc-group">
-            <span class="oc-group-label">Gateway Control</span>
-            <button class="btn warning" onclick="confirmOC('gateway-restart','gateway restart')">Restart</button>
-            <button class="btn danger"  onclick="confirmOC('gateway-stop','gateway stop')">Stop</button>
-            <button class="btn"         onclick="confirmOC('gateway-install','gateway install')">Install</button>
-            <button class="btn danger"  onclick="confirmOC('gateway-uninstall','gateway uninstall')">Uninstall</button>
-          </div>
-          <div id="oc-confirm-bar" class="oc-confirm-bar" style="display:none">
-            <span class="oc-confirm-text" id="oc-confirm-text">Confirm?</span>
-            <button class="btn danger" onclick="executeConfirmedOC()">✓ Run It</button>
-            <button class="btn" onclick="cancelOCConfirm()">✗ Cancel</button>
-          </div>
         </div>
         <div class="console-window" style="flex:1;min-height:0">
           <div class="console-header">
@@ -486,7 +473,31 @@ const server = http.createServer((req, res) => {
         </div>
       </div>
     </section>
-    <section id="gateway" class="panel"><h1>🔌 Gateway</h1><p>Status coming live.</p></section>
+    <section id="gateway" class="panel">
+      <div class="dashboard-grid">
+        <div class="oc-toolbar">
+          <div class="oc-group">
+            <span class="oc-group-label">Gateway Control</span>
+            <button class="btn warning" onclick="confirmGW('gateway-restart','gateway restart')">Restart</button>
+            <button class="btn danger"  onclick="confirmGW('gateway-stop','gateway stop')">Stop</button>
+            <button class="btn"         onclick="confirmGW('gateway-install','gateway install')">Install</button>
+            <button class="btn danger"  onclick="confirmGW('gateway-uninstall','gateway uninstall')">Uninstall</button>
+          </div>
+          <div id="gw-confirm-bar" class="oc-confirm-bar" style="display:none">
+            <span class="oc-confirm-text" id="gw-confirm-text">Confirm?</span>
+            <button class="btn danger" onclick="executeConfirmedGW()">✓ Run It</button>
+            <button class="btn" onclick="cancelGWConfirm()">✗ Cancel</button>
+          </div>
+        </div>
+        <div class="console-window" style="flex:1;min-height:0">
+          <div class="console-header">
+            <span>OUTPUT</span>
+            <button class="icon-btn" style="width:24px;height:24px;font-size:0.85rem;" onclick="clearGWOutput()" title="Clear output">✕</button>
+          </div>
+          <div class="console-body" id="gw-output" data-pristine="1"><span style="color:#94a3b8">Ready — click a command above.</span></div>
+        </div>
+      </div>
+    </section>
     <section id="sessions" class="panel"><h1>📱 Sessions</h1><p>List/spawn.</p></section>
     <section id="skills" class="panel"><h1>🛠️ Skills</h1><p>Browser.</p></section>
     <section id="nodes" class="panel"><h1>🖥️ Nodes</h1><p>Control.</p></section>
@@ -806,6 +817,59 @@ const server = http.createServer((req, res) => {
 
     function clearOCOutput() {
       var out = document.getElementById('oc-output');
+      out.innerHTML = '<span style="color:#94a3b8">Cleared — click a command above.</span>';
+      out.dataset.pristine = '1';
+    }
+
+    /* ── Gateway Panel ─────────────────────────────── */
+    var gwPending = null;
+
+    async function runGW(action) {
+      var out = document.getElementById('gw-output');
+      if (out.dataset.pristine) { out.innerHTML = ''; delete out.dataset.pristine; }
+      else {
+        var sep = document.createElement('div');
+        sep.style.cssText = 'height:3px;background:linear-gradient(90deg,rgba(59,130,246,0.55),rgba(59,130,246,0.05));border-radius:2px;margin:1.25rem 0 0.6rem;';
+        out.appendChild(sep);
+      }
+      var now = new Date().toLocaleTimeString('en-US', { timeStyle: 'short' });
+      var hdr = document.createElement('div');
+      hdr.innerHTML = '<span style="color:#38bdf8;font-weight:700">$ ' + escH(ocCmdLabels[action] || action) + '</span>  <span style="color:#94a3b8">' + now + '</span>';
+      out.appendChild(hdr);
+      var result = document.createElement('div');
+      result.style.cssText = 'color:#94a3b8;padding-left:0.5rem;';
+      result.textContent = 'Running\u2026';
+      out.appendChild(result);
+      out.scrollTop = out.scrollHeight;
+      try {
+        var resp = await fetch('/api/openclaw/' + action);
+        var data = await resp.json();
+        result.style.color = '';
+        result.innerHTML = ansiToHtml(data.output || '(no output)');
+      } catch(e) {
+        result.style.color = '#f87171';
+        result.textContent = 'Error: ' + e.message;
+      }
+      out.scrollTop = out.scrollHeight;
+    }
+
+    function confirmGW(action, label) {
+      gwPending = action;
+      document.getElementById('gw-confirm-text').textContent = 'Run: openclaw ' + label + ' — are you sure?';
+      document.getElementById('gw-confirm-bar').style.display = 'flex';
+    }
+
+    function executeConfirmedGW() {
+      if (gwPending) { var a = gwPending; cancelGWConfirm(); runGW(a); }
+    }
+
+    function cancelGWConfirm() {
+      gwPending = null;
+      document.getElementById('gw-confirm-bar').style.display = 'none';
+    }
+
+    function clearGWOutput() {
+      var out = document.getElementById('gw-output');
       out.innerHTML = '<span style="color:#94a3b8">Cleared — click a command above.</span>';
       out.dataset.pristine = '1';
     }
