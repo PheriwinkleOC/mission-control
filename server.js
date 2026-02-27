@@ -1045,7 +1045,7 @@ const server = http.createServer((req, res) => {
         var resp = await fetch('/api/openclaw/' + action);
         var data = await resp.json();
         result.style.color = '';
-        result.textContent = data.output || '(no output)';
+        result.innerHTML = ansiToHtml(data.output || '(no output)');
       } catch(e) {
         result.style.color = '#f87171';
         result.textContent = 'Error: ' + e.message;
@@ -1098,7 +1098,7 @@ const server = http.createServer((req, res) => {
         var resp = await fetch('/api/openclaw/' + action);
         var data = await resp.json();
         result.style.color = '';
-        result.textContent = data.output || '(no output)';
+        result.innerHTML = ansiToHtml(data.output || '(no output)');
       } catch(e) {
         result.style.color = '#f87171';
         result.textContent = 'Error: ' + e.message;
