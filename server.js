@@ -71,7 +71,7 @@ const server = http.createServer((req, res) => {
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Mission Control 🦞</title>
+  <title>📡 Mission Control</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
@@ -422,7 +422,7 @@ const server = http.createServer((req, res) => {
   <nav id="sidebar">
     <div class="sidebar-header">
       <button id="toggle-sidebar-btn" class="icon-btn" onclick="toggleSidebar()" title="Toggle Sidebar">☰</button>
-      <span class="logo-text">Mission Control 🦞</span>
+      <span class="logo-text">📡 Mission Control</span>
     </div>
     <div id="menu-container">
       <ul id="menu-items">
