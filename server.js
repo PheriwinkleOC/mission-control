@@ -7,6 +7,24 @@ const os = require('os');
 const { WebSocketServer } = require('ws');
 const pty = require('node-pty');
 
+function formatExecOutput(error, stdout, stderr, fallback) {
+  const out = (stdout || '').trimEnd();
+  const err = (stderr || '').trimEnd();
+  const chunks = [];
+
+  if (out) chunks.push(out);
+  if (err) chunks.push((out ? '\n\n' : '') + '[stderr]\n' + err);
+  if (!chunks.length && error && error.message) chunks.push(error.message);
+  if (!chunks.length) chunks.push(fallback);
+
+  return {
+    output: chunks.join(''),
+    stdout: out,
+    stderr: err,
+    hadStderr: Boolean(err)
+  };
+}
+
 const server = http.createServer((req, res) => {
   // --- LiteLLM API Endpoints ---
   if (req.url.startsWith('/api/litellm/')) {
@@ -17,7 +35,7 @@ const server = http.createServer((req, res) => {
       const logPath = path.join(liteLlmDir, 'litellm.log');
       exec('tail -n 100 "' + logPath + '"', (error, stdout, stderr) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ output: stdout || stderr || (error ? error.message : 'No logs found.') }));
+        res.end(JSON.stringify(formatExecOutput(error, stdout, stderr, 'No logs found.')));
       });
       return;
     }
@@ -35,7 +53,7 @@ const server = http.createServer((req, res) => {
     if (commands[action]) {
       exec(commands[action], { cwd: liteLlmDir }, (error, stdout, stderr) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ output: stdout || stderr || (error ? error.message : 'Executed successfully.') }));
+        res.end(JSON.stringify(formatExecOutput(error, stdout, stderr, 'Executed successfully.')));
       });
       return;
     }
@@ -60,7 +78,7 @@ const server = http.createServer((req, res) => {
     if (ocCmds[action]) {
       exec(ocCmds[action], { timeout: 30000, env: Object.assign({}, process.env, { FORCE_COLOR: '1', CLICOLOR_FORCE: '1' }) }, (error, stdout, stderr) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ output: stdout || stderr || (error ? error.message : 'Done.') }));
+        res.end(JSON.stringify(formatExecOutput(error, stdout, stderr, 'Done.')));
       });
       return;
     }
@@ -538,14 +556,14 @@ const server = http.createServer((req, res) => {
         </div>
         <div id="litellm-cmd-window" class="console-window">
           <div class="console-header">
-            <span>COMMAND OUTPUT</span>
+            <span>OUTPUT</span>
             <span id="litellm-status">Idle</span>
           </div>
           <div class="console-body" id="litellm-output">Waiting for command...</div>
         </div>
         <div id="litellm-log-window" class="console-window" style="display:none">
           <div class="console-header">
-            <span>litellm.log (Tailing)</span>
+            <span>OUTPUT</span>
             <button class="icon-btn" style="width:24px;height:24px;font-size:0.8rem;" onclick="fetchLiteLLMLogs()" title="Refresh">🔄</button>
           </div>
           <div class="console-body log" id="litellm-logs">Loading logs...</div>
@@ -1266,9 +1284,10 @@ const server = http.createServer((req, res) => {
       try {
         var response = await fetch('/api/litellm/' + action);
         var data = await response.json();
-        if (action === 'health' && renderHealthReport(outputDiv, data.output || '')) {
+        var parseInput = data.stdout || data.output || '';
+        if (action === 'health' && renderHealthReport(outputDiv, parseInput)) {
           statusSpan.textContent = 'Completed';
-        } else if (action === 'model-info' && renderModelsReport(outputDiv, data.output || '')) {
+        } else if (action === 'model-info' && renderModelsReport(outputDiv, parseInput)) {
           statusSpan.textContent = 'Completed';
         } else {
           outputDiv.textContent  = data.output || 'No output.';
