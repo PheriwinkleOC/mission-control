@@ -556,8 +556,8 @@ const server = http.createServer((req, res) => {
         <!-- Terminal actions -->
         <div class="term-actions">
           <button class="term-act-btn danger" onclick="killTerminal()">Disconnect</button>
-          <button class="term-act-btn"        onclick="clearTerminal()">Clear</button>
           <button class="term-act-btn"        onclick="reconnectTerminal()">Reconnect</button>
+          <button class="term-act-btn"        onclick="clearTerminal()">Clear</button>
         </div>
 
         <div class="toolbar-sep"></div>
