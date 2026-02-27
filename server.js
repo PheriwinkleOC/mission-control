@@ -1,11 +1,31 @@
 // Mission Control v1.0 🦞 Real Shell Terminal + Pro Toolbar
 const http = require('http');
-const { exec } = require('child_process');
+const { exec, execSync } = require('child_process');
 const fs_module = require('fs');
 const path = require('path');
 const os = require('os');
 const { WebSocketServer } = require('ws');
 const pty = require('node-pty');
+
+const serverStartTime = new Date().toISOString();
+
+function getVersionInfo() {
+  try {
+    const branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: __dirname }).toString().trim();
+    const logRaw = execSync(
+      'git log -30 --format="%H|||%h|||%s|||%an|||%ai"',
+      { cwd: __dirname }
+    ).toString().trim();
+    const commits = logRaw.split('\n').filter(Boolean).map(line => {
+      const [hash, short, subject, author, date] = line.split('|||');
+      return { hash, short, subject, author, date };
+    });
+    const packageVersion = require('./package.json').version;
+    return { commits, branch, packageVersion };
+  } catch (e) {
+    return { commits: [], branch: 'unknown', packageVersion: 'unknown', error: e.message };
+  }
+}
 
 function formatExecOutput(error, stdout, stderr, fallback) {
   const out = stdout || '';
@@ -64,6 +84,14 @@ function runCommandInPty(command, options) {
 }
 
 const server = http.createServer((req, res) => {
+  // --- Version History Endpoint ---
+  if (req.url === '/api/version') {
+    const info = getVersionInfo();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ...info, serverStartTime }));
+    return;
+  }
+
   // --- LiteLLM API Endpoints ---
   if (req.url.startsWith('/api/litellm/')) {
     const action = req.url.split('/')[3];
@@ -498,6 +526,7 @@ const server = http.createServer((req, res) => {
         <li class="menu-item" data-panel="xterm3"><span class="icon" style="font-family:monospace;font-weight:700;">&gt;_<span style="position:absolute;top:-3px;left:20px;font-size:0.52em;font-weight:700;line-height:1;">3</span></span><span class="label">Terminal 3</span></li>
         <li class="menu-item" data-panel="xterm4"><span class="icon" style="font-family:monospace;font-weight:700;">&gt;_<span style="position:absolute;top:-3px;left:20px;font-size:0.52em;font-weight:700;line-height:1;">4</span></span><span class="label">Terminal 4</span></li>
         <li class="menu-item" data-panel="xterm5"><span class="icon" style="font-family:monospace;font-weight:700;">&gt;_<span style="position:absolute;top:-3px;left:20px;font-size:0.52em;font-weight:700;line-height:1;">5</span></span><span class="label">Terminal 5</span></li>
+        <li class="menu-item" data-panel="version-history"><span class="icon">🏷️</span><span class="label">Version History</span></li>
       </ul>
     </div>
     <div class="sidebar-footer">
@@ -611,6 +640,49 @@ const server = http.createServer((req, res) => {
 
     <section id="projects" class="panel"><h1>📁 Projects</h1><p>Overview.</p></section>
     <section id="mc-docs"   class="panel"><h1>📚 Docs</h1><p>Coming.</p></section>
+
+    <section id="version-history" class="panel">
+      <div class="dashboard-grid">
+        <div class="oc-toolbar">
+          <span style="font-size:1.1rem;font-weight:700;">🏷️ Version History</span>
+          <span id="vh-branch-badge" style="margin-left:12px;background:#1e3a5f;color:#60a5fa;padding:2px 10px;border-radius:999px;font-size:0.8rem;font-family:monospace;"></span>
+          <div style="margin-left:auto;">
+            <button class="btn" onclick="refreshVersionHistory()">🔄 Refresh</button>
+          </div>
+        </div>
+        <div id="vh-current-card" style="background:#052e16;border:1px solid #16a34a;border-radius:8px;padding:16px;margin:0 0 12px 0;display:none;">
+          <div style="color:#4ade80;font-size:0.75rem;font-weight:700;letter-spacing:0.08em;margin-bottom:8px;">CURRENT DEPLOYED VERSION</div>
+          <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
+            <div>
+              <div style="color:#86efac;font-size:0.7rem;margin-bottom:2px;">COMMIT</div>
+              <div id="vh-head-hash" style="font-family:monospace;color:#4ade80;font-size:1rem;font-weight:700;"></div>
+            </div>
+            <div style="flex:1;min-width:200px;">
+              <div style="color:#86efac;font-size:0.7rem;margin-bottom:2px;">MESSAGE</div>
+              <div id="vh-head-msg" style="color:#d1fae5;font-weight:600;"></div>
+            </div>
+            <div>
+              <div style="color:#86efac;font-size:0.7rem;margin-bottom:2px;">AUTHOR</div>
+              <div id="vh-head-author" style="color:#d1fae5;font-family:monospace;font-size:0.85rem;"></div>
+            </div>
+            <div>
+              <div style="color:#86efac;font-size:0.7rem;margin-bottom:2px;">DATE</div>
+              <div id="vh-head-date" style="color:#d1fae5;font-family:monospace;font-size:0.85rem;"></div>
+            </div>
+            <div>
+              <div style="color:#86efac;font-size:0.7rem;margin-bottom:2px;">SERVER STARTED</div>
+              <div id="vh-server-start" style="color:#d1fae5;font-family:monospace;font-size:0.85rem;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="console-window" style="flex:1;min-height:0;">
+          <div class="console-header"><span>COMMIT HISTORY</span></div>
+          <div class="console-body" id="vh-table-body" style="overflow:auto;font-family:monospace;font-size:0.82rem;">
+            <span style="color:#94a3b8">Loading...</span>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- Terminal Panels 1-5 -->
     <section id="xterm1" class="panel term-panel">
@@ -1638,6 +1710,87 @@ const server = http.createServer((req, res) => {
     /* Build shared swatch grids once on load */
     buildSwatchGrids();
 
+    /* ── Version History ────────────────────────────── */
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function formatVHDate(iso) {
+      try {
+        var d = new Date(iso);
+        return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } catch(e) { return iso; }
+    }
+
+    function refreshVersionHistory() {
+      var tableBody = document.getElementById('vh-table-body');
+      var currentCard = document.getElementById('vh-current-card');
+      if (tableBody) tableBody.innerHTML = '<span style="color:#94a3b8">Loading...</span>';
+      fetch('/api/version')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          // Update branch badge
+          var badge = document.getElementById('vh-branch-badge');
+          if (badge) badge.textContent = data.branch || '';
+
+          // Update current version card
+          var commits = data.commits || [];
+          if (commits.length > 0) {
+            var head = commits[0];
+            document.getElementById('vh-head-hash').textContent = head.short || head.hash.slice(0, 7);
+            document.getElementById('vh-head-msg').textContent = head.subject || '';
+            document.getElementById('vh-head-author').textContent = head.author || '';
+            document.getElementById('vh-head-date').textContent = formatVHDate(head.date);
+            document.getElementById('vh-server-start').textContent = formatVHDate(data.serverStartTime);
+            if (currentCard) currentCard.style.display = '';
+          }
+
+          // Build table
+          if (!tableBody) return;
+          if (commits.length === 0) {
+            tableBody.innerHTML = '<span style="color:#94a3b8">No commits found.</span>';
+            return;
+          }
+          var rows = commits.map(function(c, i) {
+            var isHead = i === 0;
+            var rowStyle = isHead
+              ? 'background:#052e16;border-left:3px solid #16a34a;'
+              : 'border-left:3px solid transparent;';
+            return '<div style="display:grid;grid-template-columns:7ch 1fr 18ch 14ch;gap:0 12px;padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.05);' + rowStyle + '">'
+              + '<span style="color:' + (isHead ? '#4ade80' : '#60a5fa') + ';font-family:monospace;">' + escapeHtml(c.short || c.hash.slice(0,7)) + '</span>'
+              + '<span style="color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.subject) + '</span>'
+              + '<span style="color:#94a3b8;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.author) + '</span>'
+              + '<span style="color:#64748b;font-size:0.78rem;">' + escapeHtml(formatVHDate(c.date)) + '</span>'
+              + '</div>';
+          }).join('');
+          var header = '<div style="display:grid;grid-template-columns:7ch 1fr 18ch 14ch;gap:0 12px;padding:4px 8px;border-bottom:1px solid rgba(255,255,255,0.15);color:#64748b;font-size:0.72rem;letter-spacing:0.07em;">'
+            + '<span>HASH</span><span>MESSAGE</span><span>AUTHOR</span><span>DATE</span>'
+            + '</div>';
+          tableBody.innerHTML = header + rows;
+        })
+        .catch(function(e) {
+          if (tableBody) tableBody.innerHTML = '<span style="color:#f87171">Error: ' + escapeHtml(e.message) + '</span>';
+        });
+    }
+
+    // Auto-load when panel becomes visible
+    (function() {
+      var panel = document.getElementById('version-history');
+      if (!panel) return;
+      var loaded = false;
+      var observer = new MutationObserver(function() {
+        if (panel.classList.contains('active') && !loaded) {
+          loaded = true;
+          refreshVersionHistory();
+        }
+      });
+      observer.observe(panel, { attributes: true, attributeFilter: ['class'] });
+    })();
+
     /* ── Restore persisted state ───────────────────── */
     if (localStorage.theme === 'light') {
       document.body.classList.add('light');
@@ -1716,5 +1869,7 @@ wss.on('connection', function(ws) {
 });
 
 server.listen(3001, '0.0.0.0', function() {
-  console.log('Mission Control v1.0 live on :3001 — real zsh shell ready');
+  const vInfo = getVersionInfo();
+  const headHash = (vInfo.commits && vInfo.commits[0]) ? vInfo.commits[0].short : 'unknown';
+  console.log('Mission Control v1.0 live on :3001 — commit ' + headHash + ' — real zsh shell ready');
 });
