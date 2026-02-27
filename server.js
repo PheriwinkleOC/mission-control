@@ -1612,12 +1612,19 @@ server.on('upgrade', function(request, socket, head) {
 
 wss.on('connection', function(ws) {
   const shell = process.env.SHELL || '/bin/zsh';
+  const ptyEnv = Object.assign({}, process.env, {
+    TERM: 'xterm-256color',
+    COLORTERM: 'truecolor',
+    FORCE_COLOR: '1',
+    CLICOLOR_FORCE: '1'
+  });
+  delete ptyEnv.NO_COLOR;
   const ptyProcess = pty.spawn(shell, [], {
-    name: 'xterm-color',
+    name: 'xterm-256color',
     cols: 80,
     rows: 24,
     cwd:  os.homedir(),
-    env:  process.env
+    env:  ptyEnv
   });
 
   ptyProcess.onData(function(data) {
