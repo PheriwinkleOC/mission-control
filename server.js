@@ -8,21 +8,59 @@ const { WebSocketServer } = require('ws');
 const pty = require('node-pty');
 
 function formatExecOutput(error, stdout, stderr, fallback) {
-  const out = (stdout || '').trimEnd();
-  const err = (stderr || '').trimEnd();
-  const chunks = [];
-
-  if (out) chunks.push(out);
-  if (err) chunks.push((out ? '\n\n' : '') + '[stderr]\n' + err);
-  if (!chunks.length && error && error.message) chunks.push(error.message);
-  if (!chunks.length) chunks.push(fallback);
+  const out = stdout || '';
+  const err = stderr || '';
+  let combined = out + err;
+  if (!combined && error && error.message) combined = error.message;
+  if (!combined) combined = fallback;
 
   return {
-    output: chunks.join(''),
+    output: combined,
     stdout: out,
     stderr: err,
     hadStderr: Boolean(err)
   };
+}
+
+function runCommandInPty(command, options) {
+  return new Promise(function(resolve) {
+    const timeoutMs = (options && options.timeoutMs) || 30000;
+    const shell = process.env.SHELL || '/bin/zsh';
+    const ptyEnv = Object.assign({}, process.env, (options && options.env) || {});
+    const ptyProcess = pty.spawn(shell, ['-lc', command], {
+      name: 'xterm-256color',
+      cols: 120,
+      rows: 30,
+      cwd: (options && options.cwd) || process.cwd(),
+      env: ptyEnv
+    });
+
+    let output = '';
+    let done = false;
+    let timedOut = false;
+    const timer = setTimeout(function() {
+      timedOut = true;
+      try { ptyProcess.kill(); } catch (e) {}
+    }, timeoutMs);
+
+    ptyProcess.onData(function(data) {
+      output += data;
+    });
+
+    ptyProcess.onExit(function(ev) {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve({
+        output: output || (timedOut ? 'Command timed out.' : 'Done.'),
+        stdout: output,
+        stderr: '',
+        hadStderr: null,
+        exitCode: ev && typeof ev.exitCode === 'number' ? ev.exitCode : null,
+        timedOut: timedOut
+      });
+    });
+  });
 }
 
 const server = http.createServer((req, res) => {
@@ -76,9 +114,9 @@ const server = http.createServer((req, res) => {
       'gateway-uninstall':     'openclaw gateway uninstall',
     };
     if (ocCmds[action]) {
-      exec(ocCmds[action], { timeout: 30000, env: Object.assign({}, process.env, { FORCE_COLOR: '1', CLICOLOR_FORCE: '1' }) }, (error, stdout, stderr) => {
+      runCommandInPty(ocCmds[action], { timeoutMs: 30000 }).then(function(payload) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(formatExecOutput(error, stdout, stderr, 'Done.')));
+        res.end(JSON.stringify(payload));
       });
       return;
     }
@@ -1007,7 +1045,7 @@ const server = http.createServer((req, res) => {
         var resp = await fetch('/api/openclaw/' + action);
         var data = await resp.json();
         result.style.color = '';
-        result.innerHTML = ansiToHtml(data.output || '(no output)');
+        result.textContent = data.output || '(no output)';
       } catch(e) {
         result.style.color = '#f87171';
         result.textContent = 'Error: ' + e.message;
@@ -1060,7 +1098,7 @@ const server = http.createServer((req, res) => {
         var resp = await fetch('/api/openclaw/' + action);
         var data = await resp.json();
         result.style.color = '';
-        result.innerHTML = ansiToHtml(data.output || '(no output)');
+        result.textContent = data.output || '(no output)';
       } catch(e) {
         result.style.color = '#f87171';
         result.textContent = 'Error: ' + e.message;
