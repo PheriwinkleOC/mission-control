@@ -53,6 +53,7 @@ const server = http.createServer((req, res) => {
       'cron-list':             'openclaw cron list',
       'gateway-restart':       'openclaw gateway restart',
       'gateway-stop':          'openclaw gateway stop',
+      'gateway-start':         'openclaw gateway start',
       'gateway-install':       'openclaw gateway install',
       'gateway-uninstall':     'openclaw gateway uninstall',
     };
@@ -75,6 +76,7 @@ const server = http.createServer((req, res) => {
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-webgl@0.16.0/lib/xterm-addon-webgl.js"></script>
   <style>
     :root {
       --bg-dark: #000;
@@ -270,7 +272,7 @@ const server = http.createServer((req, res) => {
     #oc-output { font-family: 'SF Mono','Menlo','Monaco','Consolas',monospace; word-break: normal; color: #e2e8f0; }
 
     /* ── Terminal Panel ──────────────────────────────── */
-    #xterm.panel.active {
+    .term-panel.panel.active {
       background: #1c1c1e;
       border-radius: 10px;
       overflow: hidden;
@@ -397,8 +399,8 @@ const server = http.createServer((req, res) => {
       flex: 1; min-height: 0; overflow: hidden;
       position: relative; background: #0f172a;
     }
-    #xtermTerm {
-      position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+    .xterm-container {
+      position: absolute; top: 6px; right: 8px; bottom: 6px; left: 8px;
     }
     .xterm { height: 100% !important; }
 
@@ -435,7 +437,11 @@ const server = http.createServer((req, res) => {
         <li class="menu-item" data-panel="litellm"><span class="icon">🔄</span><span class="label">LiteLLM Proxy</span></li>
         <li class="menu-item" data-panel="projects"><span class="icon">📁</span><span class="label">Projects</span></li>
         <li class="menu-item" data-panel="mc-docs"><span class="icon">📚</span><span class="label">Docs</span></li>
-        <li class="menu-item" data-panel="xterm"><span class="icon" style="font-family:monospace;font-weight:700;">&gt;_</span><span class="label">Terminal</span></li>
+        <li class="menu-item" data-panel="xterm1"><span class="icon" style="font-family:monospace;font-weight:700;">&gt;_<span style="position:absolute;top:-3px;left:20px;font-size:0.52em;font-weight:700;line-height:1;">1</span></span><span class="label">Terminal 1</span></li>
+        <li class="menu-item" data-panel="xterm2"><span class="icon" style="font-family:monospace;font-weight:700;">&gt;_<span style="position:absolute;top:-3px;left:20px;font-size:0.52em;font-weight:700;line-height:1;">2</span></span><span class="label">Terminal 2</span></li>
+        <li class="menu-item" data-panel="xterm3"><span class="icon" style="font-family:monospace;font-weight:700;">&gt;_<span style="position:absolute;top:-3px;left:20px;font-size:0.52em;font-weight:700;line-height:1;">3</span></span><span class="label">Terminal 3</span></li>
+        <li class="menu-item" data-panel="xterm4"><span class="icon" style="font-family:monospace;font-weight:700;">&gt;_<span style="position:absolute;top:-3px;left:20px;font-size:0.52em;font-weight:700;line-height:1;">4</span></span><span class="label">Terminal 4</span></li>
+        <li class="menu-item" data-panel="xterm5"><span class="icon" style="font-family:monospace;font-weight:700;">&gt;_<span style="position:absolute;top:-3px;left:20px;font-size:0.52em;font-weight:700;line-height:1;">5</span></span><span class="label">Terminal 5</span></li>
       </ul>
     </div>
     <div class="sidebar-footer">
@@ -480,8 +486,9 @@ const server = http.createServer((req, res) => {
             <span class="oc-group-label">Gateway Control</span>
             <button class="btn warning" onclick="confirmGW('gateway-restart','gateway restart')">Restart</button>
             <button class="btn danger"  onclick="confirmGW('gateway-stop','gateway stop')">Stop</button>
-            <button class="btn"         onclick="confirmGW('gateway-install','gateway install')">Install</button>
+            <button class="btn success" onclick="confirmGW('gateway-start','gateway start')">Start</button>
             <button class="btn danger"  onclick="confirmGW('gateway-uninstall','gateway uninstall')">Uninstall</button>
+            <button class="btn"         onclick="confirmGW('gateway-install','gateway install')">Install</button>
           </div>
           <div id="gw-confirm-bar" class="oc-confirm-bar" style="display:none">
             <span class="oc-confirm-text" id="gw-confirm-text">Confirm?</span>
@@ -549,23 +556,18 @@ const server = http.createServer((req, res) => {
     <section id="projects" class="panel"><h1>📁 Projects</h1><p>Overview.</p></section>
     <section id="mc-docs"   class="panel"><h1>📚 Docs</h1><p>Coming.</p></section>
 
-    <!-- Terminal Panel -->
-    <section id="xterm" class="panel">
-      <!-- Toolbar -->
+    <!-- Terminal Panels 1-5 -->
+    <section id="xterm1" class="panel term-panel">
       <div class="term-toolbar">
-        <!-- Terminal actions -->
         <div class="term-actions">
-          <button class="term-act-btn danger" onclick="killTerminal()">Disconnect</button>
-          <button class="term-act-btn"        onclick="reconnectTerminal()">Reconnect</button>
-          <button class="term-act-btn"        onclick="clearTerminal()">Clear</button>
+          <button class="term-act-btn danger" onclick="killTerminal(1)">Disconnect</button>
+          <button class="term-act-btn"        onclick="reconnectTerminal(1)">Reconnect</button>
+          <button class="term-act-btn"        onclick="clearTerminal(1)">Clear</button>
         </div>
-
         <div class="toolbar-sep"></div>
-
-        <!-- Profile -->
         <div class="toolbar-grp">
           <span class="toolbar-lbl">Profile</span>
-          <select class="profile-sel" id="termProfile" onchange="applyProfile(this.value)">
+          <select class="profile-sel" id="termProfile-1" onchange="applyProfile(1,this.value)">
             <option value="basic" selected>Basic</option>
             <option value="dracula">Dracula</option>
             <option value="matrix">Matrix</option>
@@ -575,46 +577,228 @@ const server = http.createServer((req, res) => {
             <option value="" style="color:#555">&#8212; Custom &#8212;</option>
           </select>
         </div>
-
         <div class="toolbar-sep"></div>
-
-        <!-- Text color -->
         <div class="toolbar-grp">
           <span class="toolbar-lbl">Text</span>
-          <button class="swatch-btn" id="fgSwatchBtn" onclick="openPicker('fg', event)" title="Text Color"></button>
+          <button class="swatch-btn" id="fgSwatchBtn-1" onclick="openPicker(1,'fg',event)" title="Text Color"></button>
         </div>
-
-        <!-- BG color -->
         <div class="toolbar-grp">
           <span class="toolbar-lbl">BG</span>
-          <button class="swatch-btn" id="bgSwatchBtn" onclick="openPicker('bg', event)" title="Background Color"></button>
+          <button class="swatch-btn" id="bgSwatchBtn-1" onclick="openPicker(1,'bg',event)" title="Background Color"></button>
         </div>
-
         <div class="toolbar-sep"></div>
-
-        <!-- Font size -->
         <div class="toolbar-grp">
           <span class="toolbar-lbl">Size</span>
           <div class="fs-ctrl">
-            <button class="fs-btn" onclick="adjustFontSize(-1)">&#8722;</button>
-            <span class="fs-val" id="fsDisplay">14</span>
-            <button class="fs-btn" onclick="adjustFontSize(1)">+</button>
+            <button class="fs-btn" onclick="adjustFontSize(1,-1)">&#8722;</button>
+            <span class="fs-val" id="fsDisplay-1">14</span>
+            <button class="fs-btn" onclick="adjustFontSize(1,1)">+</button>
           </div>
         </div>
-
-        <button class="toolbar-clear" onclick="clearTerminal()">Clear</button>
       </div>
-
-      <!-- Terminal body -->
       <div class="term-body">
-        <div id="xtermTerm"></div>
+        <div id="xtermTerm-1" class="xterm-container"></div>
       </div>
-
-      <!-- Status bar -->
       <div class="term-statusbar">
-        <div class="status-dot off" id="termStatusDot"></div>
-        <span id="termStatusText">Disconnected</span>
-        <span style="margin-left:auto;font-size:0.68rem;">zsh &#x2022; mission-control</span>
+        <div class="status-dot off" id="termStatusDot-1"></div>
+        <span id="termStatusText-1">Disconnected</span>
+        <span style="margin-left:auto;font-size:0.68rem;">zsh &#x2022; terminal 1</span>
+      </div>
+    </section>
+
+    <section id="xterm2" class="panel term-panel">
+      <div class="term-toolbar">
+        <div class="term-actions">
+          <button class="term-act-btn danger" onclick="killTerminal(2)">Disconnect</button>
+          <button class="term-act-btn"        onclick="reconnectTerminal(2)">Reconnect</button>
+          <button class="term-act-btn"        onclick="clearTerminal(2)">Clear</button>
+        </div>
+        <div class="toolbar-sep"></div>
+        <div class="toolbar-grp">
+          <span class="toolbar-lbl">Profile</span>
+          <select class="profile-sel" id="termProfile-2" onchange="applyProfile(2,this.value)">
+            <option value="basic" selected>Basic</option>
+            <option value="dracula">Dracula</option>
+            <option value="matrix">Matrix</option>
+            <option value="monokai">Monokai</option>
+            <option value="ocean">Ocean</option>
+            <option value="solarized">Solarized</option>
+            <option value="" style="color:#555">&#8212; Custom &#8212;</option>
+          </select>
+        </div>
+        <div class="toolbar-sep"></div>
+        <div class="toolbar-grp">
+          <span class="toolbar-lbl">Text</span>
+          <button class="swatch-btn" id="fgSwatchBtn-2" onclick="openPicker(2,'fg',event)" title="Text Color"></button>
+        </div>
+        <div class="toolbar-grp">
+          <span class="toolbar-lbl">BG</span>
+          <button class="swatch-btn" id="bgSwatchBtn-2" onclick="openPicker(2,'bg',event)" title="Background Color"></button>
+        </div>
+        <div class="toolbar-sep"></div>
+        <div class="toolbar-grp">
+          <span class="toolbar-lbl">Size</span>
+          <div class="fs-ctrl">
+            <button class="fs-btn" onclick="adjustFontSize(2,-1)">&#8722;</button>
+            <span class="fs-val" id="fsDisplay-2">14</span>
+            <button class="fs-btn" onclick="adjustFontSize(2,1)">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="term-body">
+        <div id="xtermTerm-2" class="xterm-container"></div>
+      </div>
+      <div class="term-statusbar">
+        <div class="status-dot off" id="termStatusDot-2"></div>
+        <span id="termStatusText-2">Disconnected</span>
+        <span style="margin-left:auto;font-size:0.68rem;">zsh &#x2022; terminal 2</span>
+      </div>
+    </section>
+
+    <section id="xterm3" class="panel term-panel">
+      <div class="term-toolbar">
+        <div class="term-actions">
+          <button class="term-act-btn danger" onclick="killTerminal(3)">Disconnect</button>
+          <button class="term-act-btn"        onclick="reconnectTerminal(3)">Reconnect</button>
+          <button class="term-act-btn"        onclick="clearTerminal(3)">Clear</button>
+        </div>
+        <div class="toolbar-sep"></div>
+        <div class="toolbar-grp">
+          <span class="toolbar-lbl">Profile</span>
+          <select class="profile-sel" id="termProfile-3" onchange="applyProfile(3,this.value)">
+            <option value="basic" selected>Basic</option>
+            <option value="dracula">Dracula</option>
+            <option value="matrix">Matrix</option>
+            <option value="monokai">Monokai</option>
+            <option value="ocean">Ocean</option>
+            <option value="solarized">Solarized</option>
+            <option value="" style="color:#555">&#8212; Custom &#8212;</option>
+          </select>
+        </div>
+        <div class="toolbar-sep"></div>
+        <div class="toolbar-grp">
+          <span class="toolbar-lbl">Text</span>
+          <button class="swatch-btn" id="fgSwatchBtn-3" onclick="openPicker(3,'fg',event)" title="Text Color"></button>
+        </div>
+        <div class="toolbar-grp">
+          <span class="toolbar-lbl">BG</span>
+          <button class="swatch-btn" id="bgSwatchBtn-3" onclick="openPicker(3,'bg',event)" title="Background Color"></button>
+        </div>
+        <div class="toolbar-sep"></div>
+        <div class="toolbar-grp">
+          <span class="toolbar-lbl">Size</span>
+          <div class="fs-ctrl">
+            <button class="fs-btn" onclick="adjustFontSize(3,-1)">&#8722;</button>
+            <span class="fs-val" id="fsDisplay-3">14</span>
+            <button class="fs-btn" onclick="adjustFontSize(3,1)">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="term-body">
+        <div id="xtermTerm-3" class="xterm-container"></div>
+      </div>
+      <div class="term-statusbar">
+        <div class="status-dot off" id="termStatusDot-3"></div>
+        <span id="termStatusText-3">Disconnected</span>
+        <span style="margin-left:auto;font-size:0.68rem;">zsh &#x2022; terminal 3</span>
+      </div>
+    </section>
+
+    <section id="xterm4" class="panel term-panel">
+      <div class="term-toolbar">
+        <div class="term-actions">
+          <button class="term-act-btn danger" onclick="killTerminal(4)">Disconnect</button>
+          <button class="term-act-btn"        onclick="reconnectTerminal(4)">Reconnect</button>
+          <button class="term-act-btn"        onclick="clearTerminal(4)">Clear</button>
+        </div>
+        <div class="toolbar-sep"></div>
+        <div class="toolbar-grp">
+          <span class="toolbar-lbl">Profile</span>
+          <select class="profile-sel" id="termProfile-4" onchange="applyProfile(4,this.value)">
+            <option value="basic" selected>Basic</option>
+            <option value="dracula">Dracula</option>
+            <option value="matrix">Matrix</option>
+            <option value="monokai">Monokai</option>
+            <option value="ocean">Ocean</option>
+            <option value="solarized">Solarized</option>
+            <option value="" style="color:#555">&#8212; Custom &#8212;</option>
+          </select>
+        </div>
+        <div class="toolbar-sep"></div>
+        <div class="toolbar-grp">
+          <span class="toolbar-lbl">Text</span>
+          <button class="swatch-btn" id="fgSwatchBtn-4" onclick="openPicker(4,'fg',event)" title="Text Color"></button>
+        </div>
+        <div class="toolbar-grp">
+          <span class="toolbar-lbl">BG</span>
+          <button class="swatch-btn" id="bgSwatchBtn-4" onclick="openPicker(4,'bg',event)" title="Background Color"></button>
+        </div>
+        <div class="toolbar-sep"></div>
+        <div class="toolbar-grp">
+          <span class="toolbar-lbl">Size</span>
+          <div class="fs-ctrl">
+            <button class="fs-btn" onclick="adjustFontSize(4,-1)">&#8722;</button>
+            <span class="fs-val" id="fsDisplay-4">14</span>
+            <button class="fs-btn" onclick="adjustFontSize(4,1)">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="term-body">
+        <div id="xtermTerm-4" class="xterm-container"></div>
+      </div>
+      <div class="term-statusbar">
+        <div class="status-dot off" id="termStatusDot-4"></div>
+        <span id="termStatusText-4">Disconnected</span>
+        <span style="margin-left:auto;font-size:0.68rem;">zsh &#x2022; terminal 4</span>
+      </div>
+    </section>
+
+    <section id="xterm5" class="panel term-panel">
+      <div class="term-toolbar">
+        <div class="term-actions">
+          <button class="term-act-btn danger" onclick="killTerminal(5)">Disconnect</button>
+          <button class="term-act-btn"        onclick="reconnectTerminal(5)">Reconnect</button>
+          <button class="term-act-btn"        onclick="clearTerminal(5)">Clear</button>
+        </div>
+        <div class="toolbar-sep"></div>
+        <div class="toolbar-grp">
+          <span class="toolbar-lbl">Profile</span>
+          <select class="profile-sel" id="termProfile-5" onchange="applyProfile(5,this.value)">
+            <option value="basic" selected>Basic</option>
+            <option value="dracula">Dracula</option>
+            <option value="matrix">Matrix</option>
+            <option value="monokai">Monokai</option>
+            <option value="ocean">Ocean</option>
+            <option value="solarized">Solarized</option>
+            <option value="" style="color:#555">&#8212; Custom &#8212;</option>
+          </select>
+        </div>
+        <div class="toolbar-sep"></div>
+        <div class="toolbar-grp">
+          <span class="toolbar-lbl">Text</span>
+          <button class="swatch-btn" id="fgSwatchBtn-5" onclick="openPicker(5,'fg',event)" title="Text Color"></button>
+        </div>
+        <div class="toolbar-grp">
+          <span class="toolbar-lbl">BG</span>
+          <button class="swatch-btn" id="bgSwatchBtn-5" onclick="openPicker(5,'bg',event)" title="Background Color"></button>
+        </div>
+        <div class="toolbar-sep"></div>
+        <div class="toolbar-grp">
+          <span class="toolbar-lbl">Size</span>
+          <div class="fs-ctrl">
+            <button class="fs-btn" onclick="adjustFontSize(5,-1)">&#8722;</button>
+            <span class="fs-val" id="fsDisplay-5">14</span>
+            <button class="fs-btn" onclick="adjustFontSize(5,1)">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="term-body">
+        <div id="xtermTerm-5" class="xterm-container"></div>
+      </div>
+      <div class="term-statusbar">
+        <div class="status-dot off" id="termStatusDot-5"></div>
+        <span id="termStatusText-5">Disconnected</span>
+        <span style="margin-left:auto;font-size:0.68rem;">zsh &#x2022; terminal 5</span>
       </div>
     </section>
   </main>
@@ -631,25 +815,37 @@ const server = http.createServer((req, res) => {
 
   <script>
     /* ── Global state ──────────────────────────────── */
-    var xtermTerm    = null;
-    var fitAddon     = null;
-    var termWS       = null;
-    var currentFontSize = 14;
-    var currentTheme = {
-      background:   '#1d1f21',
-      foreground:   '#c5c8c6',
-      cursor:       '#c5c8c6',
-      cursorAccent: '#1d1f21',
-      selection:    'rgba(197,200,198,0.25)'
+    var terms          = {};   /* keyed by terminal id 1-5 */
+    var activeTermId   = null; /* id of the currently visible terminal */
+    var termPickerTarget = null; /* id of terminal targeted by open swatch picker */
+
+    /* ANSI 16-color palette — matches OpenClaw ansiToHtml colors (One Dark-ish, macOS-compatible) */
+    var MAC_ANSI = {
+      black:         '#555555',
+      red:           '#e06c75',
+      green:         '#98c379',
+      yellow:        '#e5c07b',
+      blue:          '#61afef',
+      magenta:       '#c678dd',
+      cyan:          '#56b6c2',
+      white:         '#abb2bf',
+      brightBlack:   '#888888',
+      brightRed:     '#ff7b7b',
+      brightGreen:   '#b5e890',
+      brightYellow:  '#ffd080',
+      brightBlue:    '#8abff0',
+      brightMagenta: '#d9a0ff',
+      brightCyan:    '#80d9e3',
+      brightWhite:   '#ffffff'
     };
 
     var PROFILES = {
-      ocean:     { background:'#0f172a', foreground:'#38bdf8', cursor:'#38bdf8', cursorAccent:'#0f172a', selection:'rgba(56,189,248,0.25)' },
-      matrix:    { background:'#001100', foreground:'#00ff41', cursor:'#00ff41', cursorAccent:'#001100', selection:'rgba(0,255,65,0.22)' },
-      solarized: { background:'#002b36', foreground:'#839496', cursor:'#839496', cursorAccent:'#073642', selection:'rgba(131,148,150,0.25)' },
-      monokai:   { background:'#272822', foreground:'#f8f8f2', cursor:'#f8f8f0', cursorAccent:'#272822', selection:'rgba(248,248,242,0.2)' },
-      dracula:   { background:'#282a36', foreground:'#f8f8f2', cursor:'#f8f8f0', cursorAccent:'#282a36', selection:'rgba(248,248,242,0.2)' },
-      basic:     { background:'#1d1f21', foreground:'#c5c8c6', cursor:'#c5c8c6', cursorAccent:'#1d1f21', selection:'rgba(197,200,198,0.25)' }
+      ocean:     Object.assign({ background:'#0f172a', foreground:'#38bdf8', cursor:'#38bdf8', cursorAccent:'#0f172a', selection:'rgba(56,189,248,0.25)' },   MAC_ANSI),
+      matrix:    Object.assign({ background:'#001100', foreground:'#00ff41', cursor:'#00ff41', cursorAccent:'#001100', selection:'rgba(0,255,65,0.22)' },     MAC_ANSI),
+      solarized: Object.assign({ background:'#002b36', foreground:'#839496', cursor:'#839496', cursorAccent:'#073642', selection:'rgba(131,148,150,0.25)' }, MAC_ANSI),
+      monokai:   Object.assign({ background:'#272822', foreground:'#f8f8f2', cursor:'#f8f8f0', cursorAccent:'#272822', selection:'rgba(248,248,242,0.2)' },  MAC_ANSI),
+      dracula:   Object.assign({ background:'#282a36', foreground:'#f8f8f2', cursor:'#f8f8f0', cursorAccent:'#282a36', selection:'rgba(248,248,242,0.2)' },  MAC_ANSI),
+      basic:     Object.assign({ background:'#1d1f21', foreground:'#c5c8c6', cursor:'#c5c8c6', cursorAccent:'#1d1f21', selection:'rgba(197,200,198,0.25)' }, MAC_ANSI)
     };
 
     /* 48 curated colors  — 8 cols × 6 rows */
@@ -694,6 +890,7 @@ const server = http.createServer((req, res) => {
       'cron-list':             'openclaw cron list',
       'gateway-restart':       'openclaw gateway restart',
       'gateway-stop':          'openclaw gateway stop',
+      'gateway-start':         'openclaw gateway start',
       'gateway-install':       'openclaw gateway install',
       'gateway-uninstall':     'openclaw gateway uninstall',
     };
@@ -701,8 +898,8 @@ const server = http.createServer((req, res) => {
 
     function ansi256ToHex(n) {
       if (n < 16) {
-        var std = ['#000000','#800000','#008000','#808000','#000080','#800080','#008080','#c0c0c0',
-                   '#808080','#ff0000','#00ff00','#ffff00','#0000ff','#ff00ff','#00ffff','#ffffff'];
+        var std = ['#555555','#e06c75','#98c379','#e5c07b','#61afef','#c678dd','#56b6c2','#abb2bf',
+                   '#888888','#ff7b7b','#b5e890','#ffd080','#8abff0','#d9a0ff','#80d9e3','#ffffff'];
         return std[n] || '#ffffff';
       }
       if (n > 231) {
@@ -1102,131 +1299,153 @@ const server = http.createServer((req, res) => {
     }, 5000);
     fetchLiteLLMLogs();
 
+    /* ── Terminal — instance helpers ──────────────────── */
+    function getTermState(id) {
+      if (!terms[id]) {
+        terms[id] = {
+          term:     null,
+          fitAddon: null,
+          ws:       null,
+          fontSize: 14,
+          theme:    Object.assign({}, PROFILES.basic)
+        };
+      }
+      return terms[id];
+    }
+
     /* ── Terminal — init ───────────────────────────── */
-    function initXterm() {
-      if (xtermTerm) {
-        setTimeout(function() { if (fitAddon) fitAddon.fit(); }, 50);
+    function initXterm(id) {
+      var s = getTermState(id);
+      activeTermId = id;
+      if (s.term) {
+        updateSwatchBtns(id);
+        setTimeout(function() { if (s.fitAddon) s.fitAddon.fit(); s.term.focus(); }, 50);
         return;
       }
 
-      xtermTerm = new Terminal({
-        fontSize:    currentFontSize,
+      s.term = new Terminal({
+        fontSize:    s.fontSize,
         fontFamily:  "'Menlo', 'Monaco', 'Courier New', monospace",
-        theme:       currentTheme,
+        theme:       s.theme,
         cursorBlink: true,
         cursorStyle: 'block',
         scrollback:  5000
       });
 
-      fitAddon = new FitAddon.FitAddon();
-      xtermTerm.loadAddon(fitAddon);
-      xtermTerm.open(document.getElementById('xtermTerm'));
+      s.fitAddon = new FitAddon.FitAddon();
+      s.term.loadAddon(s.fitAddon);
+      s.term.open(document.getElementById('xtermTerm-' + id));
 
-      /* onData registered once — always routes to current WS */
-      xtermTerm.onData(function(data) {
-        if (termWS && termWS.readyState === WebSocket.OPEN) {
-          termWS.send(JSON.stringify({ type: 'data', data: data }));
+      try {
+        var wgl = new WebglAddon.WebglAddon();
+        wgl.onContextLoss(function() { wgl.dispose(); });
+        s.term.loadAddon(wgl);
+      } catch(e) { /* fall back to canvas renderer */ }
+
+      s.term.onData(function(data) {
+        if (s.ws && s.ws.readyState === WebSocket.OPEN) {
+          s.ws.send(JSON.stringify({ type: 'data', data: data }));
         }
       });
 
-      /* Send resize events to PTY */
-      xtermTerm.onResize(function(size) {
-        if (termWS && termWS.readyState === WebSocket.OPEN) {
-          termWS.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows }));
+      s.term.onResize(function(size) {
+        if (s.ws && s.ws.readyState === WebSocket.OPEN) {
+          s.ws.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows }));
         }
       });
 
-      window.addEventListener('resize', function() {
-        if (fitAddon) fitAddon.fit();
-      });
-
-      buildSwatchGrids();
-      updateSwatchBtns();
+      updateSwatchBtns(id);
 
       setTimeout(function() {
-        fitAddon.fit();
-        connectTermWS();
+        s.fitAddon.fit();
+        connectTermWS(id);
+        s.term.focus();
       }, 60);
     }
 
     /* ── Terminal — WebSocket ──────────────────────── */
-    function connectTermWS() {
-      if (termWS) {
-        try { termWS.close(); } catch(e) {}
-      }
+    function connectTermWS(id) {
+      var s = getTermState(id);
+      if (s.ws) { try { s.ws.close(); } catch(e) {} }
       var wsUrl = 'ws://' + location.hostname + ':3001/terminal';
-      termWS = new WebSocket(wsUrl);
+      s.ws = new WebSocket(wsUrl);
 
-      termWS.onopen = function() {
-        setTermStatus(true, 'Connected');
-        if (xtermTerm) {
-          termWS.send(JSON.stringify({ type: 'resize', cols: xtermTerm.cols, rows: xtermTerm.rows }));
+      s.ws.onopen = function() {
+        setTermStatus(id, true, 'Connected');
+        if (s.term) {
+          s.ws.send(JSON.stringify({ type: 'resize', cols: s.term.cols, rows: s.term.rows }));
         }
       };
 
-      termWS.onmessage = function(e) {
+      s.ws.onmessage = function(e) {
         try {
           var msg = JSON.parse(e.data);
-          if (msg.type === 'data') xtermTerm.write(msg.data);
+          if (msg.type === 'data') s.term.write(msg.data);
           if (msg.type === 'exit') {
-            xtermTerm.write('\\r\\n\\x1b[33m[Process exited]\\x1b[0m\\r\\n');
-            setTermStatus(false, 'Exited');
+            s.term.write('\\r\\n\\x1b[33m[Process exited]\\x1b[0m\\r\\n');
+            setTermStatus(id, false, 'Exited');
           }
         } catch(ex) {}
       };
 
-      termWS.onclose = function() { setTermStatus(false, 'Disconnected'); };
-      termWS.onerror = function() {
-        setTermStatus(false, 'Connection error');
-        xtermTerm.write('\\r\\n\\x1b[31m[WebSocket error]\\x1b[0m\\r\\n');
+      s.ws.onclose = function() { setTermStatus(id, false, 'Disconnected'); };
+      s.ws.onerror = function() {
+        setTermStatus(id, false, 'Connection error');
+        s.term.write('\\r\\n\\x1b[31m[WebSocket error]\\x1b[0m\\r\\n');
       };
     }
 
-    function reconnectTerminal() {
-      if (xtermTerm) {
-        xtermTerm.write('\\r\\n\\x1b[33m[Reconnecting...]\\x1b[0m\\r\\n');
-      }
-      connectTermWS();
+    function reconnectTerminal(id) {
+      var s = getTermState(id);
+      if (!s.term) { initXterm(id); return; }
+      s.term.write('\\r\\n\\x1b[33m[Reconnecting...]\\x1b[0m\\r\\n');
+      connectTermWS(id);
+      setTimeout(function() { if (s.term) s.term.focus(); }, 80);
     }
 
-    function killTerminal() {
-      if (termWS) { try { termWS.close(); } catch(e) {} termWS = null; }
-      if (xtermTerm) xtermTerm.write('\\r\\n\\x1b[31m[Session closed]\\x1b[0m\\r\\n');
-      setTermStatus(false, 'Disconnected');
+    function killTerminal(id) {
+      var s = getTermState(id);
+      if (s.ws) { try { s.ws.close(); } catch(e) {} s.ws = null; }
+      if (s.term) { s.term.write('\\r\\n\\x1b[31m[Session closed]\\x1b[0m\\r\\n'); s.term.focus(); }
+      setTermStatus(id, false, 'Disconnected');
     }
 
-    function clearTerminal() { if (xtermTerm) xtermTerm.clear(); }
+    function clearTerminal(id) { var s = getTermState(id); if (s.term) { s.term.clear(); s.term.focus(); } }
 
-    function setTermStatus(connected, text) {
-      var dot   = document.getElementById('termStatusDot');
-      var label = document.getElementById('termStatusText');
+    function setTermStatus(id, connected, text) {
+      var dot   = document.getElementById('termStatusDot-' + id);
+      var label = document.getElementById('termStatusText-' + id);
       if (dot)   { dot.classList.toggle('on',  connected); dot.classList.toggle('off', !connected); }
       if (label) label.textContent = text;
     }
 
     /* ── Terminal — font size ──────────────────────── */
-    function adjustFontSize(delta) {
-      currentFontSize = Math.max(8, Math.min(32, currentFontSize + delta));
-      document.getElementById('fsDisplay').textContent = currentFontSize;
-      if (xtermTerm) {
-        xtermTerm.options.fontSize = currentFontSize;
-        if (fitAddon) setTimeout(function() { fitAddon.fit(); }, 20);
+    function adjustFontSize(id, delta) {
+      var s = getTermState(id);
+      s.fontSize = Math.max(8, Math.min(32, s.fontSize + delta));
+      document.getElementById('fsDisplay-' + id).textContent = s.fontSize;
+      if (s.term) {
+        s.term.options.fontSize = s.fontSize;
+        if (s.fitAddon) setTimeout(function() { s.fitAddon.fit(); s.term.focus(); }, 20);
       }
     }
 
     /* ── Terminal — profiles ───────────────────────── */
-    function applyProfile(name) {
+    function applyProfile(id, name) {
       if (!PROFILES[name]) return;
-      currentTheme = Object.assign({}, PROFILES[name]);
-      applyCurrentTheme();
-      updateSwatchBtns();
+      var s = getTermState(id);
+      s.theme = Object.assign({}, PROFILES[name]);
+      applyCurrentTheme(id);
+      updateSwatchBtns(id);
+      if (s.term) s.term.focus();
     }
 
-    function applyCurrentTheme() {
-      if (!xtermTerm) return;
-      xtermTerm.options.theme = currentTheme;
-      var body = document.querySelector('.term-body');
-      if (body) body.style.background = currentTheme.background;
+    function applyCurrentTheme(id) {
+      var s = getTermState(id);
+      if (!s.term) return;
+      s.term.options.theme = s.theme;
+      var body = document.querySelector('#xterm' + id + ' .term-body');
+      if (body) body.style.background = s.theme.background;
     }
 
     /* ── Terminal — color swatches ─────────────────── */
@@ -1236,9 +1455,9 @@ const server = http.createServer((req, res) => {
         grid.innerHTML = '';
         SWATCHES.forEach(function(color) {
           var sw = document.createElement('button');
-          sw.className   = 'sw';
+          sw.className        = 'sw';
           sw.style.background = color;
-          sw.title       = color;
+          sw.title            = color;
           sw.setAttribute('data-color', color);
           sw.onclick = function() { applyColor(which, color); };
           grid.appendChild(sw);
@@ -1246,13 +1465,17 @@ const server = http.createServer((req, res) => {
       });
     }
 
-    function updateSwatchBtns() {
-      document.getElementById('fgSwatchBtn').style.background = currentTheme.foreground;
-      document.getElementById('bgSwatchBtn').style.background = currentTheme.background;
+    function updateSwatchBtns(id) {
+      var s  = getTermState(id);
+      var fg = document.getElementById('fgSwatchBtn-' + id);
+      var bg = document.getElementById('bgSwatchBtn-' + id);
+      if (fg) fg.style.background = s.theme.foreground;
+      if (bg) bg.style.background = s.theme.background;
     }
 
-    function markActiveSwatches(which) {
-      var active = which === 'fg' ? currentTheme.foreground : currentTheme.background;
+    function markActiveSwatches(id, which) {
+      var s      = getTermState(id);
+      var active = which === 'fg' ? s.theme.foreground : s.theme.background;
       var grid   = document.getElementById(which + 'SwatchGrid');
       grid.querySelectorAll('.sw').forEach(function(sw) {
         sw.classList.toggle('active', sw.getAttribute('data-color') === active);
@@ -1261,42 +1484,47 @@ const server = http.createServer((req, res) => {
 
     var activePicker = null;
 
-    function openPicker(which, event) {
+    function openPicker(id, which, event) {
       event.stopPropagation();
-      var fgP = document.getElementById('fgPicker');
-      var bgP = document.getElementById('bgPicker');
+      var fgP    = document.getElementById('fgPicker');
+      var bgP    = document.getElementById('bgPicker');
       var picker = which === 'fg' ? fgP : bgP;
 
-      if (picker.classList.contains('open')) {
+      if (picker.classList.contains('open') && termPickerTarget === id) {
         picker.classList.remove('open');
-        activePicker = null;
+        activePicker     = null;
+        termPickerTarget = null;
         return;
       }
       fgP.classList.remove('open');
       bgP.classList.remove('open');
+      termPickerTarget = id;
 
       var btn  = event.currentTarget;
       var rect = btn.getBoundingClientRect();
-      /* Position below button, clamp to viewport right edge */
       picker.style.top  = (rect.bottom + 7) + 'px';
       picker.style.left = Math.min(rect.left, window.innerWidth - 230) + 'px';
       picker.classList.add('open');
       activePicker = which;
-      markActiveSwatches(which);
+      markActiveSwatches(id, which);
     }
 
     function applyColor(which, color) {
+      var id = termPickerTarget;
+      if (!id) return;
+      var s = getTermState(id);
       if (which === 'fg') {
-        currentTheme = Object.assign({}, currentTheme, { foreground: color, cursor: color });
+        s.theme = Object.assign({}, s.theme, { foreground: color, cursor: color });
       } else {
-        currentTheme = Object.assign({}, currentTheme, { background: color, cursorAccent: color });
+        s.theme = Object.assign({}, s.theme, { background: color, cursorAccent: color });
       }
-      applyCurrentTheme();
-      updateSwatchBtns();
+      applyCurrentTheme(id);
+      updateSwatchBtns(id);
       document.getElementById(which + 'Picker').classList.remove('open');
-      activePicker = null;
-      /* Mark profile as custom */
-      document.getElementById('termProfile').value = '';
+      activePicker     = null;
+      termPickerTarget = null;
+      document.getElementById('termProfile-' + id).value = '';
+      if (s.term) s.term.focus();
     }
 
     /* ── Menu navigation ───────────────────────────── */
@@ -1305,7 +1533,8 @@ const server = http.createServer((req, res) => {
       if (!e.target.closest('.swatch-popup') && !e.target.closest('.swatch-btn')) {
         document.getElementById('fgPicker').classList.remove('open');
         document.getElementById('bgPicker').classList.remove('open');
-        activePicker = null;
+        activePicker     = null;
+        termPickerTarget = null;
       }
 
       if (e.target.closest('.header-actions') || e.target.closest('.theme-toggle-btn') || e.target.closest('.sidebar-footer')) return;
@@ -1313,9 +1542,9 @@ const server = http.createServer((req, res) => {
       var item = e.target.closest('.menu-item');
       if (!item) return;
 
-      /* Remove terminal-active when leaving xterm panel */
+      /* Remove terminal-active when leaving any terminal panel */
       var prevPanel = document.querySelector('.panel.active');
-      if (prevPanel && prevPanel.id === 'xterm') {
+      if (prevPanel && prevPanel.classList.contains('term-panel')) {
         document.getElementById('main').classList.remove('terminal-active');
       }
 
@@ -1325,18 +1554,32 @@ const server = http.createServer((req, res) => {
       var panelId = item.dataset.panel;
       if (panelId) {
         document.querySelectorAll('.panel.active').forEach(function(p) { p.classList.remove('active'); });
-        if (panelId === 'xterm') {
+        var TERM_PANELS = { xterm1:1, xterm2:2, xterm3:3, xterm4:4, xterm5:5 };
+        var termNum = TERM_PANELS[panelId];
+        if (termNum) {
           document.getElementById('main').classList.add('terminal-active');
+          activeTermId = termNum;
+          updateSwatchBtns(termNum);
           /* Show panel first so container has dimensions, then init */
-          var panel = document.getElementById('xterm');
+          var panel = document.getElementById(panelId);
           if (panel) panel.classList.add('active');
-          initXterm();
+          initXterm(termNum);
           return;
         }
         var panel = document.getElementById(panelId);
         if (panel) panel.classList.add('active');
       }
     });
+
+    /* ── Terminal — global resize handler ─────────── */
+    window.addEventListener('resize', function() {
+      if (activeTermId && terms[activeTermId] && terms[activeTermId].fitAddon) {
+        terms[activeTermId].fitAddon.fit();
+      }
+    });
+
+    /* Build shared swatch grids once on load */
+    buildSwatchGrids();
 
     /* ── Restore persisted state ───────────────────── */
     if (localStorage.theme === 'light') {
