@@ -1,17 +1,45 @@
 # mission-control
 Mission Control dashboard and CLI hub for OpenClaw operations
 
-## Running the server
+## Recommended local workflow
 
-By default, Mission Control listens on port `3270`.
+Use two separate checkouts on the same Mac:
 
-Start it with the default port:
+- Development checkout: this directory, `/Users/openclaw/CodeProjects/mission-control`
+- Production checkout: `~/ProductionCode/mission-control`
+
+Development should run on port `3001`, and production should run on port `3270`.
+
+## Development
+
+Install dependencies and run the app in development:
 
 ```bash
 cd /Users/openclaw/CodeProjects/mission-control
 npm install
-node server.js
+npm run dev
 ```
+
+Then open:
+
+```text
+http://127.0.0.1:3001
+```
+
+## Production setup on this Mac
+
+Run this once from the development checkout:
+
+```bash
+cd /Users/openclaw/CodeProjects/mission-control
+npm run setup:prod
+```
+
+This will:
+
+- create or update `~/ProductionCode/mission-control`
+- run `npm ci` in the production checkout
+- make the production shell scripts executable
 
 Then open:
 
@@ -19,28 +47,74 @@ Then open:
 http://127.0.0.1:3270
 ```
 
-## Changing the port
+## Deploying to production
 
-To run Mission Control on a port other than the default `3270`, set the `PORT` environment variable before starting the server:
+The right term here is "deploy to production" or just "deploy".
+
+Recommended workflow:
 
 ```bash
 cd /Users/openclaw/CodeProjects/mission-control
-PORT=4010 node server.js
+npm test
+git add .
+git commit -m "Your change"
+git push origin main
+npm run deploy:prod
 ```
 
-Then open:
+The deploy script expects your current checkout `HEAD` to match `origin/main`, so you do not accidentally deploy unpushed local work.
 
-```text
-http://127.0.0.1:4010
-```
+## Useful production commands
 
-The same override works with `npm start`:
+Start production in the background:
 
 ```bash
-PORT=4010 npm start
+npm run prod:start
 ```
 
-For `launchd` on macOS, set `PORT` in the job environment or wrapper script if you want a port other than the default `3270`.
+Stop the background process:
+
+```bash
+npm run prod:stop
+```
+
+Restart the background process:
+
+```bash
+npm run prod:restart
+```
+
+Tail recent logs:
+
+```bash
+npm run prod:logs
+```
+
+The background helper writes logs to `~/ProductionCode/mission-control/logs/`.
+
+## launchd note
+
+If you wire this into your own `launchd` job, point it at:
+
+```bash
+~/ProductionCode/mission-control/scripts/start-production.sh
+```
+
+That script keeps Node in the foreground, which is the correct pattern for `launchd`.
+
+If you want to start the production copy manually without `launchd`, use:
+
+```bash
+~/ProductionCode/mission-control/scripts/start-production-bg.sh
+```
+
+## Port overrides
+
+The app itself still supports a manual `PORT` override:
+
+```bash
+PORT=4010 node server.js
+```
 
 ## Smoke test
 

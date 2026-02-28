@@ -4,9 +4,17 @@
   "description": "Mission Control dashboard and CLI hub for OpenClaw operations",
   "main": "index.js",
   "scripts": {
+    "dev": "PORT=3001 NODE_ENV=development node server.js",
     "test": "npm run smoke",
     "smoke": "node scripts/smoke-test.js",
     "start": "node server.js",
+    "start:prod": "PORT=3270 NODE_ENV=production node server.js",
+    "setup:prod": "zsh scripts/setup-production.sh",
+    "deploy:prod": "zsh scripts/deploy-production.sh",
+    "prod:start": "zsh scripts/start-production-bg.sh",
+    "prod:stop": "zsh scripts/stop-production.sh",
+    "prod:restart": "zsh scripts/restart-production.sh",
+    "prod:logs": "zsh scripts/production-logs.sh",
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/darwin-x64/spawn-helper node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper 2>/dev/null || true"
   },
   "repository": {
