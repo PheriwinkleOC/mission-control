@@ -171,8 +171,7 @@ const server = http.createServer((req, res) => {
       --bg-hover-light: rgba(29,78,216,0.16);
       --menu-hover-dark: rgba(59,130,246,0.18);
       --menu-active-dark: rgba(59,130,246,0.42);
-      --icon-hover-dark: rgba(96,165,250,0.42);
-      --icon-hover-dark-shadow: inset 0 0 0 1px rgba(147,197,253,0.18), 0 0 18px rgba(59,130,246,0.2);
+      --icon-hover-dark: rgba(59,130,246,0.30);
       --menu-hover-dark-shadow: inset 0 1px 0 rgba(147,197,253,0.12), inset 0 -1px 0 rgba(147,197,253,0.12);
       --menu-active-dark-shadow: inset 3px 0 0 rgba(147,197,253,0.95), inset 0 1px 0 rgba(147,197,253,0.14), inset 0 -1px 0 rgba(147,197,253,0.14);
     }
@@ -233,22 +232,10 @@ const server = http.createServer((req, res) => {
     }
     .icon-btn:hover, .icon-btn.mc-hover {
       background: var(--icon-hover-dark);
-      box-shadow: inset 0 0 0 1px rgba(191,219,254,0.26), 0 0 24px rgba(59,130,246,0.28);
-    }
-    body:not(.light) #toggle-sidebar-btn:hover,
-    body:not(.light) #toggle-sidebar-btn.mc-hover {
-      background: var(--icon-hover-dark);
-      box-shadow: inset 0 0 0 1px rgba(191,219,254,0.26), 0 0 24px rgba(59,130,246,0.28);
     }
     body.light .icon-btn:hover, body.light .icon-btn.mc-hover {
       background: var(--bg-hover-light);
-      box-shadow: none;
     }
-    body.light #toggle-sidebar-btn:hover, body.light #toggle-sidebar-btn.mc-hover {
-      background: var(--bg-hover-light);
-      box-shadow: none;
-    }
-    .icon-btn:focus,
     .icon-btn:focus-visible,
     .icon-btn:active {
       background: none;
@@ -373,18 +360,10 @@ const server = http.createServer((req, res) => {
     }
     .theme-toggle-btn:hover, .theme-toggle-btn.mc-hover {
       background: var(--icon-hover-dark);
-      box-shadow: inset 0 0 0 1px rgba(191,219,254,0.26), 0 0 24px rgba(59,130,246,0.28);
-    }
-    body:not(.light) #themeToggleBtn:hover,
-    body:not(.light) #themeToggleBtn.mc-hover {
-      background: var(--icon-hover-dark);
-      box-shadow: inset 0 0 0 1px rgba(191,219,254,0.26), 0 0 24px rgba(59,130,246,0.28);
     }
     body.light .theme-toggle-btn:hover, body.light .theme-toggle-btn.mc-hover {
       background: var(--bg-hover-light);
-      box-shadow: none;
     }
-    .theme-toggle-btn:focus,
     .theme-toggle-btn:focus-visible,
     .theme-toggle-btn:active {
       background: none;
@@ -1055,53 +1034,19 @@ const server = http.createServer((req, res) => {
     ];
 
     /* ── Theme / sidebar toggle ────────────────────── */
-    function clearSidebarHover() {
-      document.querySelectorAll('.menu-item.mc-hover, .icon-btn.mc-hover, .theme-toggle-btn.mc-hover').forEach(function(el) {
-        el.classList.remove('mc-hover');
-      });
-    }
-
-    var lastMouseX = null;
-    var lastMouseY = null;
-
-    function syncSidebarHover(target) {
-      clearSidebarHover();
-      if (!target) return;
-      var hoverEl = target.closest('.menu-item, #toggle-sidebar-btn, #themeToggleBtn');
-      if (hoverEl) hoverEl.classList.add('mc-hover');
-    }
-
-    function syncSidebarHoverFromPoint(x, y) {
-      lastMouseX = x;
-      lastMouseY = y;
-      syncSidebarHover(document.elementFromPoint(x, y));
-    }
-
-    function resyncSidebarHover() {
-      if (lastMouseX == null || lastMouseY == null) {
-        clearSidebarHover();
-        return;
-      }
-      syncSidebarHoverFromPoint(lastMouseX, lastMouseY);
-    }
-
     function toggleTheme() {
-      clearSidebarHover();
       document.body.classList.toggle('light');
       var isLight = document.body.classList.contains('light');
       localStorage.theme = isLight ? 'light' : 'dark';
       var btn = document.getElementById('themeToggleBtn');
       btn.querySelector('.icon').textContent  = isLight ? '☀️' : '🌙';
       btn.querySelector('.label').textContent = isLight ? 'Switch to Dark' : 'Switch to Light';
-      setTimeout(resyncSidebarHover, 0);
     }
 
     function toggleSidebar() {
-      clearSidebarHover();
       var sidebar = document.getElementById('sidebar');
       sidebar.classList.toggle('collapsed');
       localStorage.sidebarCollapsed = sidebar.classList.contains('collapsed');
-      setTimeout(resyncSidebarHover, 0);
     }
 
     /* ── OpenClaw ──────────────────────────────────── */
@@ -1796,25 +1741,20 @@ const server = http.createServer((req, res) => {
       }
     });
 
-    document.addEventListener('mousemove', function(e) {
-      syncSidebarHoverFromPoint(e.clientX, e.clientY);
-    }, true);
-    document.addEventListener('mouseover', function(e) {
-      syncSidebarHover(e.target);
-    }, true);
-    window.addEventListener('mouseout', function(e) {
-      if (!e.relatedTarget) clearSidebarHover();
-    });
-    document.addEventListener('click', function(e) {
-      if (e.target.closest('#sidebar')) {
-        setTimeout(resyncSidebarHover, 0);
-        return;
+
+    /* ── Sidebar hover (mouseenter/mouseleave per element) ── */
+    (function() {
+      function attachHover(el) {
+        el.addEventListener('mouseenter', function() { el.classList.add('mc-hover'); });
+        el.addEventListener('mouseleave', function() { el.classList.remove('mc-hover'); });
       }
-      clearSidebarHover();
-    }, true);
-    window.addEventListener('blur', function() {
-      clearSidebarHover();
-    });
+      document.querySelectorAll('.menu-item').forEach(attachHover);
+      attachHover(document.getElementById('toggle-sidebar-btn'));
+      attachHover(document.getElementById('themeToggleBtn'));
+      window.addEventListener('blur', function() {
+        document.querySelectorAll('.mc-hover').forEach(function(el) { el.classList.remove('mc-hover'); });
+      });
+    })();
 
     /* ── Terminal — global resize handler ─────────── */
     window.addEventListener('resize', function() {
