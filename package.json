@@ -4,7 +4,8 @@
   "description": "Mission Control dashboard and CLI hub for OpenClaw operations",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run smoke",
+    "smoke": "node scripts/smoke-test.js",
     "start": "node server.js",
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/darwin-x64/spawn-helper node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper 2>/dev/null || true"
   },
