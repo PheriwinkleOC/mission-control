@@ -8,6 +8,8 @@ const { WebSocketServer } = require('ws');
 const pty = require('node-pty');
 
 const serverStartTime = new Date().toISOString();
+const DEFAULT_PORT = 3270;
+const PORT = parseInt(process.env.PORT || String(DEFAULT_PORT), 10);
 
 function getVersionInfo() {
   try {
@@ -1537,7 +1539,7 @@ const server = http.createServer((req, res) => {
     function connectTermWS(id) {
       var s = getTermState(id);
       if (s.ws) { try { s.ws.close(); } catch(e) {} }
-      var wsUrl = 'ws://' + location.hostname + ':3001/terminal';
+      var wsUrl = 'ws://' + location.hostname + ':' + location.port + '/terminal';
       s.ws = new WebSocket(wsUrl);
 
       s.ws.onopen = function() {
@@ -1924,8 +1926,8 @@ wss.on('connection', function(ws) {
   });
 });
 
-server.listen(3001, '0.0.0.0', function() {
+server.listen(PORT, '0.0.0.0', function() {
   const vInfo = getVersionInfo();
   const headHash = (vInfo.commits && vInfo.commits[0]) ? vInfo.commits[0].short : 'unknown';
-  console.log('Mission Control v1.0 live on :3001 — commit ' + headHash + ' — real zsh shell ready');
+  console.log('Mission Control v1.0 live on :' + PORT + ' — commit ' + headHash + ' — real zsh shell ready');
 });
