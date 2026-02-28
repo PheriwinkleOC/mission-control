@@ -167,8 +167,14 @@ const server = http.createServer((req, res) => {
       --bg-light: white;
       --text-dark: #3b82f6;
       --text-light: #1d4ed8;
-      --bg-hover-dark: rgba(59,130,246,0.1);
-      --bg-hover-light: rgba(29,78,216,0.1);
+      --bg-hover-dark: rgba(59,130,246,0.22);
+      --bg-hover-light: rgba(29,78,216,0.16);
+      --menu-hover-dark: rgba(59,130,246,0.18);
+      --menu-active-dark: rgba(59,130,246,0.42);
+      --icon-hover-dark: rgba(96,165,250,0.42);
+      --icon-hover-dark-shadow: inset 0 0 0 1px rgba(147,197,253,0.18), 0 0 18px rgba(59,130,246,0.2);
+      --menu-hover-dark-shadow: inset 0 1px 0 rgba(147,197,253,0.12), inset 0 -1px 0 rgba(147,197,253,0.12);
+      --menu-active-dark-shadow: inset 3px 0 0 rgba(147,197,253,0.95), inset 0 1px 0 rgba(147,197,253,0.14), inset 0 -1px 0 rgba(147,197,253,0.14);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -221,9 +227,34 @@ const server = http.createServer((req, res) => {
       width: 36px; height: 36px; display: flex; align-items: center;
       justify-content: center; border-radius: 6px; font-size: 1.2rem;
       transition: background 0.2s;
+      -webkit-appearance: none; appearance: none;
+      outline: none; box-shadow: none;
+      -webkit-tap-highlight-color: transparent;
     }
-    .icon-btn:hover { background: var(--bg-hover-dark); }
-    body.light .icon-btn:hover { background: var(--bg-hover-light); }
+    .icon-btn:hover, .icon-btn.mc-hover {
+      background: var(--icon-hover-dark);
+      box-shadow: inset 0 0 0 1px rgba(191,219,254,0.26), 0 0 24px rgba(59,130,246,0.28);
+    }
+    body:not(.light) #toggle-sidebar-btn:hover,
+    body:not(.light) #toggle-sidebar-btn.mc-hover {
+      background: var(--icon-hover-dark);
+      box-shadow: inset 0 0 0 1px rgba(191,219,254,0.26), 0 0 24px rgba(59,130,246,0.28);
+    }
+    body.light .icon-btn:hover, body.light .icon-btn.mc-hover {
+      background: var(--bg-hover-light);
+      box-shadow: none;
+    }
+    body.light #toggle-sidebar-btn:hover, body.light #toggle-sidebar-btn.mc-hover {
+      background: var(--bg-hover-light);
+      box-shadow: none;
+    }
+    .icon-btn:focus,
+    .icon-btn:focus-visible,
+    .icon-btn:active {
+      background: none;
+      outline: none;
+      box-shadow: none;
+    }
 
     /* ── Menu ────────────────────────────────────────── */
     #menu-container { flex: 1; overflow-y: auto; padding-top: 0.5rem; }
@@ -233,10 +264,20 @@ const server = http.createServer((req, res) => {
       cursor: pointer; position: relative;
       display: flex; align-items: center; gap: 0.75rem; user-select: none;
     }
-    .menu-item:hover { background: var(--bg-hover-dark); }
-    body.light .menu-item:hover { background: var(--bg-hover-light); }
-    .menu-item.active { background: rgba(59,130,246,0.3); }
+    .menu-item:hover, .menu-item.mc-hover {
+      background: var(--menu-hover-dark);
+      box-shadow: var(--menu-hover-dark-shadow);
+    }
+    body.light .menu-item:hover, body.light .menu-item.mc-hover {
+      background: var(--bg-hover-light);
+      box-shadow: none;
+    }
+    .menu-item.active { background: var(--menu-active-dark); }
+    .menu-item.active {
+      box-shadow: var(--menu-active-dark-shadow);
+    }
     body.light .menu-item.active { background: rgba(29,78,216,0.3); }
+    body.light .menu-item.active { box-shadow: none; }
     .icon {&#10;      position: absolute;&#10;      left: 1rem;&#10;      top: 50%;&#10;      transform: translateY(-50%);&#10;      width: 24px;&#10;      height: 24px;&#10;      font-size: 1.2rem;&#10;      flex-shrink: 0;&#10;      text-align: center;&#10;      line-height: 1;&#10;    }
     .label { flex: 1; margin-left: 3rem; white-space: nowrap; opacity: 1; transition: opacity 0.2s; }
     #sidebar.collapsed .label { opacity: 0; }
@@ -325,10 +366,31 @@ const server = http.createServer((req, res) => {
       display: flex; align-items: center; justify-content: center;
       background: none; border: none; border-radius: 6px; color: inherit;
       cursor: pointer; user-select: none;
-      -webkit-appearance: none; appearance: none; transition: background 0.2s;
+      -webkit-appearance: none; appearance: none;
+      transition: background 0.2s;
+      outline: none; box-shadow: none;
+      -webkit-tap-highlight-color: transparent;
     }
-    .theme-toggle-btn:hover { background: var(--bg-hover-dark); }
-    body.light .theme-toggle-btn:hover { background: var(--bg-hover-light); }
+    .theme-toggle-btn:hover, .theme-toggle-btn.mc-hover {
+      background: var(--icon-hover-dark);
+      box-shadow: inset 0 0 0 1px rgba(191,219,254,0.26), 0 0 24px rgba(59,130,246,0.28);
+    }
+    body:not(.light) #themeToggleBtn:hover,
+    body:not(.light) #themeToggleBtn.mc-hover {
+      background: var(--icon-hover-dark);
+      box-shadow: inset 0 0 0 1px rgba(191,219,254,0.26), 0 0 24px rgba(59,130,246,0.28);
+    }
+    body.light .theme-toggle-btn:hover, body.light .theme-toggle-btn.mc-hover {
+      background: var(--bg-hover-light);
+      box-shadow: none;
+    }
+    .theme-toggle-btn:focus,
+    .theme-toggle-btn:focus-visible,
+    .theme-toggle-btn:active {
+      background: none;
+      outline: none;
+      box-shadow: none;
+    }
     .theme-toggle-btn .icon { position: static; font-size: 1.3rem; line-height: 1; transform: none; top: auto; left: auto; }
     .theme-toggle-btn .label { display: none; }
 
@@ -993,19 +1055,53 @@ const server = http.createServer((req, res) => {
     ];
 
     /* ── Theme / sidebar toggle ────────────────────── */
+    function clearSidebarHover() {
+      document.querySelectorAll('.menu-item.mc-hover, .icon-btn.mc-hover, .theme-toggle-btn.mc-hover').forEach(function(el) {
+        el.classList.remove('mc-hover');
+      });
+    }
+
+    var lastMouseX = null;
+    var lastMouseY = null;
+
+    function syncSidebarHover(target) {
+      clearSidebarHover();
+      if (!target) return;
+      var hoverEl = target.closest('.menu-item, #toggle-sidebar-btn, #themeToggleBtn');
+      if (hoverEl) hoverEl.classList.add('mc-hover');
+    }
+
+    function syncSidebarHoverFromPoint(x, y) {
+      lastMouseX = x;
+      lastMouseY = y;
+      syncSidebarHover(document.elementFromPoint(x, y));
+    }
+
+    function resyncSidebarHover() {
+      if (lastMouseX == null || lastMouseY == null) {
+        clearSidebarHover();
+        return;
+      }
+      syncSidebarHoverFromPoint(lastMouseX, lastMouseY);
+    }
+
     function toggleTheme() {
+      clearSidebarHover();
       document.body.classList.toggle('light');
       var isLight = document.body.classList.contains('light');
       localStorage.theme = isLight ? 'light' : 'dark';
       var btn = document.getElementById('themeToggleBtn');
       btn.querySelector('.icon').textContent  = isLight ? '☀️' : '🌙';
       btn.querySelector('.label').textContent = isLight ? 'Switch to Dark' : 'Switch to Light';
+      setTimeout(resyncSidebarHover, 0);
     }
 
     function toggleSidebar() {
+      clearSidebarHover();
       var sidebar = document.getElementById('sidebar');
       sidebar.classList.toggle('collapsed');
       localStorage.sidebarCollapsed = sidebar.classList.contains('collapsed');
+      setTimeout(resyncSidebarHover, 0);
     }
 
     /* ── OpenClaw ──────────────────────────────────── */
@@ -1698,6 +1794,26 @@ const server = http.createServer((req, res) => {
         var panel = document.getElementById(panelId);
         if (panel) panel.classList.add('active');
       }
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      syncSidebarHoverFromPoint(e.clientX, e.clientY);
+    }, true);
+    document.addEventListener('mouseover', function(e) {
+      syncSidebarHover(e.target);
+    }, true);
+    window.addEventListener('mouseout', function(e) {
+      if (!e.relatedTarget) clearSidebarHover();
+    });
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('#sidebar')) {
+        setTimeout(resyncSidebarHover, 0);
+        return;
+      }
+      clearSidebarHover();
+    }, true);
+    window.addEventListener('blur', function() {
+      clearSidebarHover();
     });
 
     /* ── Terminal — global resize handler ─────────── */
