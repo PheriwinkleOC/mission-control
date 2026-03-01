@@ -1798,11 +1798,40 @@ const server = http.createServer((req, res) => {
         .replace(/"/g, '&quot;');
     }
 
-    function formatVHDate(iso) {
+    function formatVHDateParts(iso) {
       try {
-        var d = new Date(iso);
-        return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      } catch(e) { return iso; }
+        var raw = String(iso).trim();
+        var gitMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2}) ([+-])(\d{2})(\d{2})$/);
+        var d;
+        if (gitMatch) {
+          var year = parseInt(gitMatch[1], 10);
+          var month = parseInt(gitMatch[2], 10) - 1;
+          var day = parseInt(gitMatch[3], 10);
+          var hour = parseInt(gitMatch[4], 10);
+          var minute = parseInt(gitMatch[5], 10);
+          var second = parseInt(gitMatch[6], 10);
+          var sign = gitMatch[7] === '-' ? -1 : 1;
+          var offsetHours = parseInt(gitMatch[8], 10);
+          var offsetMinutes = parseInt(gitMatch[9], 10);
+          var totalOffsetMinutes = sign * (offsetHours * 60 + offsetMinutes);
+          d = new Date(Date.UTC(year, month, day, hour, minute, second) - totalOffsetMinutes * 60000);
+        } else {
+          d = new Date(raw);
+        }
+        if (isNaN(d.getTime())) throw new Error('Invalid date');
+        return {
+          date: d.toLocaleDateString(),
+          time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+      } catch(e) { return { date: String(iso), time: '' }; }
+    }
+
+    function formatVHDateHtml(iso, color) {
+      var parts = formatVHDateParts(iso);
+      var lineColor = color || '#64748b';
+      var html = '<span style="display:block;color:' + lineColor + ';">' + escapeHtml(parts.date) + '</span>';
+      if (parts.time) html += '<span style="display:block;color:' + lineColor + ';">' + escapeHtml(parts.time) + '</span>';
+      return html;
     }
 
     function refreshVersionHistory() {
@@ -1823,8 +1852,8 @@ const server = http.createServer((req, res) => {
             document.getElementById('vh-head-hash').textContent = head.short || head.hash.slice(0, 7);
             document.getElementById('vh-head-msg').textContent = head.subject || '';
             document.getElementById('vh-head-author').textContent = head.author || '';
-            document.getElementById('vh-head-date').textContent = formatVHDate(head.date);
-            document.getElementById('vh-server-start').textContent = formatVHDate(data.serverStartTime);
+            document.getElementById('vh-head-date').innerHTML = formatVHDateHtml(head.date, '#d1fae5');
+            document.getElementById('vh-server-start').innerHTML = formatVHDateHtml(data.serverStartTime, '#d1fae5');
             if (currentCard) currentCard.style.display = '';
           }
 
@@ -1843,7 +1872,7 @@ const server = http.createServer((req, res) => {
               + '<span style="color:' + (isHead ? '#4ade80' : '#60a5fa') + ';font-family:monospace;">' + escapeHtml(c.short || c.hash.slice(0,7)) + '</span>'
               + '<span style="color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.subject) + '</span>'
               + '<span style="color:#94a3b8;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.author) + '</span>'
-              + '<span style="color:#64748b;font-size:0.78rem;">' + escapeHtml(formatVHDate(c.date)) + '</span>'
+              + '<span style="color:#64748b;font-size:0.78rem;line-height:1.2;">' + formatVHDateHtml(c.date, '#64748b') + '</span>'
               + '</div>';
           }).join('');
           var header = '<div style="display:grid;grid-template-columns:7ch 1fr 18ch 14ch;gap:0 12px;padding:4px 8px;border-bottom:1px solid rgba(255,255,255,0.15);color:#64748b;font-size:0.72rem;letter-spacing:0.07em;">'
