@@ -48,7 +48,13 @@ function runCommandInPty(command, options) {
   return new Promise(function(resolve) {
     const timeoutMs = (options && options.timeoutMs) || 30000;
     const shell = process.env.SHELL || '/bin/zsh';
-    const ptyEnv = Object.assign({}, process.env, (options && options.env) || {});
+    const ptyEnv = Object.assign({}, process.env, {
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor',
+      FORCE_COLOR: '1',
+      CLICOLOR_FORCE: '1'
+    }, (options && options.env) || {});
+    delete ptyEnv.NO_COLOR;
     const ptyProcess = pty.spawn(shell, ['-lc', command], {
       name: 'xterm-256color',
       cols: 120,
@@ -1085,6 +1091,14 @@ const server = http.createServer((req, res) => {
       return '#' + ch(r) + ch(gr) + ch(b);
     }
 
+    function ansiRgbToHex(r, g, b) {
+      function ch(v) {
+        var n = Math.max(0, Math.min(255, parseInt(v, 10) || 0)).toString(16);
+        return n.length < 2 ? '0' + n : n;
+      }
+      return '#' + ch(r) + ch(g) + ch(b);
+    }
+
     function ansiToHtml(raw) {
       var fg16 = {
         '30':'#555','31':'#e06c75','32':'#98c379','33':'#e5c07b',
@@ -1093,11 +1107,12 @@ const server = http.createServer((req, res) => {
         '94':'#8abff0','95':'#d9a0ff','96':'#80d9e3','97':'#ffffff'
       };
       var ESC = '\\x1b';
-      var out = '', openSpan = false, fg = null, bold = false, i = 0;
+      var out = '', openSpan = false, fg = null, bg = null, bold = false, i = 0;
       function closeSpan() { if (openSpan) { out += '</span>'; openSpan = false; } }
       function applyStyle() {
         var css = '';
         if (fg) css += 'color:' + fg + ';';
+        if (bg) css += 'background:' + bg + ';';
         if (bold) css += 'font-weight:700;';
         if (css) { out += '<span style="' + css + '">'; openSpan = true; }
       }
@@ -1111,13 +1126,19 @@ const server = http.createServer((req, res) => {
             closeSpan();
             for (var ci = 0; ci < codes.length; ci++) {
               var n = parseInt(codes[ci], 10) || 0;
-              if (n === 0) { fg = null; bold = false; }
+              if (n === 0) { fg = null; bg = null; bold = false; }
               else if (n === 1) { bold = true; }
               else if (n === 22) { bold = false; }
               else if (n === 39) { fg = null; }
+              else if (n === 49) { bg = null; }
               else if ((n === 38 || n === 48) && codes[ci+1] === '5' && codes[ci+2] !== undefined) {
                 if (n === 38) fg = ansi256ToHex(parseInt(codes[ci+2], 10));
+                else bg = ansi256ToHex(parseInt(codes[ci+2], 10));
                 ci += 2;
+              } else if ((n === 38 || n === 48) && codes[ci+1] === '2' && codes[ci+2] !== undefined && codes[ci+3] !== undefined && codes[ci+4] !== undefined) {
+                if (n === 38) fg = ansiRgbToHex(codes[ci+2], codes[ci+3], codes[ci+4]);
+                else bg = ansiRgbToHex(codes[ci+2], codes[ci+3], codes[ci+4]);
+                ci += 4;
               } else if (fg16[String(n)]) { fg = fg16[String(n)]; }
             }
             applyStyle();
