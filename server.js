@@ -1165,7 +1165,7 @@ const server = http.createServer((req, res) => {
       if (out.dataset.pristine) { out.innerHTML = ''; delete out.dataset.pristine; }
       else {
         var sep = document.createElement('div');
-        sep.style.cssText = 'height:3px;background:linear-gradient(90deg,rgba(59,130,246,0.55),rgba(59,130,246,0.05));border-radius:2px;margin:1.25rem 0 0.6rem;';
+        sep.style.cssText = 'height:3px;background:rgba(59,130,246,0.55);border-radius:2px;margin:1.25rem 0 0.6rem;';
         out.appendChild(sep);
       }
       var now = new Date().toLocaleTimeString('en-US', { timeStyle: 'short' });
@@ -1218,7 +1218,7 @@ const server = http.createServer((req, res) => {
       if (out.dataset.pristine) { out.innerHTML = ''; delete out.dataset.pristine; }
       else {
         var sep = document.createElement('div');
-        sep.style.cssText = 'height:3px;background:linear-gradient(90deg,rgba(59,130,246,0.55),rgba(59,130,246,0.05));border-radius:2px;margin:1.25rem 0 0.6rem;';
+        sep.style.cssText = 'height:3px;background:rgba(59,130,246,0.55);border-radius:2px;margin:1.25rem 0 0.6rem;';
         out.appendChild(sep);
       }
       var now = new Date().toLocaleTimeString('en-US', { timeStyle: 'short' });
