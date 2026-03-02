@@ -28,7 +28,8 @@ fi
 git -C "$PROD_DIR" pull --ff-only "$REMOTE_NAME" "$PROD_BRANCH"
 npm --prefix "$PROD_DIR" ci
 chmod +x "$PROD_DIR/scripts/"*.sh
+"$REPO_DIR/scripts/install-launch-agent.sh"
 
 echo "Production setup complete."
 echo "Development: http://127.0.0.1:3001 via npm run dev"
-echo "Production:  http://127.0.0.1:3270 via $PROD_DIR/scripts/start-production.sh"
+echo "Production:  http://127.0.0.1:3270 via launchd ($HOME/Library/LaunchAgents/ai.openclaw.mission-control.plist)"

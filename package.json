@@ -11,6 +11,7 @@
     "start:prod": "PORT=3270 NODE_ENV=production node server.js",
     "setup:prod": "zsh scripts/setup-production.sh",
     "deploy:prod": "zsh scripts/deploy-production.sh",
+    "prod:install-agent": "zsh scripts/install-launch-agent.sh",
     "prod:start": "zsh scripts/start-production-bg.sh",
     "prod:stop": "zsh scripts/stop-production.sh",
     "prod:restart": "zsh scripts/restart-production.sh",

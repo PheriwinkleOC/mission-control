@@ -66,19 +66,28 @@ The deploy script expects your current checkout `HEAD` to match `origin/main`, s
 
 ## Useful production commands
 
-Start production in the background:
+Install or refresh the production LaunchAgent:
+
+```bash
+zsh scripts/install-launch-agent.sh
+```
+
+Start production:
 
 ```bash
 npm run prod:start
 ```
 
-Stop the background process:
+If the canonical LaunchAgent is installed, this starts Mission Control under `launchd`.
+If not, it falls back to the legacy background helper.
+
+Stop production:
 
 ```bash
 npm run prod:stop
 ```
 
-Restart the background process:
+Restart production:
 
 ```bash
 npm run prod:restart
@@ -90,17 +99,18 @@ Tail recent logs:
 npm run prod:logs
 ```
 
-The background helper writes logs to `~/ProductionCode/mission-control/logs/`.
+Mission Control writes logs to `~/ProductionCode/mission-control/logs/`.
+If production is launchd-managed, `npm run prod:start` and `npm run prod:restart` now reuse that service instead of trying to start a duplicate process.
 
 ## launchd note
 
-If you wire this into your own `launchd` job, point it at:
+The supported production startup path is a single LaunchAgent:
 
 ```bash
-~/ProductionCode/mission-control/scripts/start-production.sh
+~/Library/LaunchAgents/ai.openclaw.mission-control.plist
 ```
 
-That script keeps Node in the foreground, which is the correct pattern for `launchd`.
+That agent points at `~/ProductionCode/mission-control/scripts/start-production.sh`, which keeps Node in the foreground and is the correct pattern for `launchd`.
 
 If you want to start the production copy manually without `launchd`, use:
 
