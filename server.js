@@ -385,7 +385,7 @@ const server = http.createServer((req, res) => {
     }
     body.light .action-bar { background: rgba(0,0,0,0.05); border-color: rgba(29,78,216,0.2); }
     .tab-nav {
-      display: flex; gap: 2px; background: rgba(0,0,0,0.3);
+      display: flex; gap: 2px; background: rgba(255,255,255,0.1);
       padding: 3px; border-radius: 6px; flex-shrink: 0;
     }
     body.light .tab-nav { background: rgba(0,0,0,0.1); }
@@ -577,6 +577,9 @@ const server = http.createServer((req, res) => {
       padding: 0 2px; height: 24px;
       display: flex; align-items: center; justify-content: center;
     }
+    body.light #markdown-editor .fs-btn { color: #475569; }
+    body.light #markdown-editor .fs-btn:hover { background: rgba(0,0,0,0.08); color: #0f172a; }
+    body.light #markdown-editor .fs-val { color: #1e293b; border-color: rgba(0,0,0,0.2); }
 
     /* Clear button */
     .toolbar-clear {
@@ -721,9 +724,11 @@ const server = http.createServer((req, res) => {
     }
     .md-zoom-ctrl {
       display: flex; align-items: center;
-      background: rgba(0,0,0,0.2); border: 1px solid rgba(59,130,246,0.2);
+      background: rgba(0,0,0,0.2); border: 1px solid rgba(59,130,246,0.5);
       border-radius: 5px; overflow: hidden;
     }
+    #markdown-editor .fs-val { border-color: rgba(255,255,255,0.25); }
+    body.light .md-zoom-ctrl { border-color: rgba(29,78,216,0.4); }
     .md-editor-container { flex: 1; min-height: 0; overflow: hidden; position: relative; }
     .md-both-layout { display: flex; height: 100%; }
     .md-both-editor, .md-both-viewer { flex: 1; min-width: 0; height: 100%; overflow: auto; }
@@ -758,7 +763,7 @@ const server = http.createServer((req, res) => {
     .md-toggle-lbl { font-size: 0.78rem; color: #64748b; font-weight: 500; transition: color 0.2s; }
     .md-toggle-track {
       width: 38px; height: 20px; border-radius: 10px; flex-shrink: 0;
-      background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.5);
+      background: rgba(255,255,255,0.08); border: 1.5px solid #4b5563;
       position: relative; transition: background 0.2s, border-color 0.2s;
     }
     .md-toggle-thumb {
@@ -797,18 +802,19 @@ const server = http.createServer((req, res) => {
     }
     /* jstree dark overrides */
     #mdBrowseTree .jstree-default-dark { background: transparent; }
-    #mdBrowseTree .jstree-default-dark .jstree-anchor { color: #e2e8f0; font-size: 0.85rem; }
+    #mdBrowseTree .jstree-default-dark .jstree-anchor { color: #94a3b8; font-size: 0.85rem; }
     #mdBrowseTree .jstree-default-dark .jstree-hovered { background: #1e293b; border-radius: 4px; }
-    #mdBrowseTree .jstree-default-dark .jstree-clicked { background: #1e3a5f; border-radius: 4px; color: #60a5fa; }
-    #mdBrowseTree .md-node-other > a { color: #475569 !important; }
-    #mdBrowseTree .md-node-other > a.jstree-clicked { color: #94a3b8 !important; }
+    #mdBrowseTree .jstree-default-dark .jstree-clicked { background: #1e3a5f; border-radius: 4px; }
+    #mdBrowseTree a.md-node-md { color: #e2e8f0 !important; }
+    #mdBrowseTree a.md-node-md.jstree-clicked { color: #60a5fa !important; }
     body.light .md-browse-dialog { background: #f8fafc; border-color: #cbd5e1; }
     body.light .md-browse-header, body.light .md-browse-footer { border-color: #e2e8f0; }
     body.light .md-browse-title { color: #0f172a; }
-    body.light #mdBrowseTree .jstree-default-dark .jstree-anchor { color: #0f172a; }
+    body.light #mdBrowseTree .jstree-default-dark .jstree-anchor { color: #94a3b8; }
     body.light #mdBrowseTree .jstree-default-dark .jstree-hovered { background: #e2e8f0; }
-    body.light #mdBrowseTree .jstree-default-dark .jstree-clicked { background: #dbeafe; color: #1d4ed8; }
-    body.light #mdBrowseTree .md-node-other > a { color: #94a3b8 !important; }
+    body.light #mdBrowseTree .jstree-default-dark .jstree-clicked { background: #dbeafe; }
+    body.light #mdBrowseTree a.md-node-md { color: #0f172a !important; }
+    body.light #mdBrowseTree a.md-node-md.jstree-clicked { color: #1d4ed8 !important; }
   </style>
 </head>
 <body>
@@ -959,7 +965,7 @@ const server = http.createServer((req, res) => {
           <ul class="md-pin-list" id="mdPinList"></ul>
           <div class="md-sidebar-actions">
             <button class="btn" onclick="mdPinCurrentFile()">Pin Current</button>
-            <button class="btn danger" onclick="mdUnpinSelected()">Unpin</button>
+            <button class="btn" onclick="mdUnpinSelected()">Unpin</button>
           </div>
         </div>
         <div class="md-editor-area">
@@ -975,7 +981,7 @@ const server = http.createServer((req, res) => {
               <span class="md-toggle-track"><span class="md-toggle-thumb"></span></span>
               <span class="md-toggle-lbl">Edit</span>
             </label>
-            <button class="btn success" id="mdSaveBtn" onclick="mdSaveFile()" style="display:none;">Save</button>
+            <button class="btn" id="mdSaveBtn" onclick="mdSaveFile()" style="display:none;">Save</button>
             <div class="toolbar-sep" style="height:22px;background:rgba(59,130,246,0.25);width:1px;flex-shrink:0;"></div>
             <div class="tab-nav">
               <button class="tab-btn active" id="mdTabMarkdown" onclick="mdSwitchView(event,'markdown')">Markdown</button>
@@ -1004,6 +1010,7 @@ const server = http.createServer((req, res) => {
       <div class="md-browse-dialog">
         <div class="md-browse-header">
           <span class="md-browse-title">Browse Files</span>
+          <button class="icon-btn" id="mdBrowseGoUp" onclick="mdBrowseGoUp()" title="Go to parent folder" style="font-size:1rem;">↑</button>
           <span id="mdBrowsePath" class="md-browse-path"></span>
           <button class="icon-btn" onclick="mdBrowseClose()" title="Close" style="margin-left:auto;">✕</button>
         </div>
@@ -2454,13 +2461,11 @@ const server = http.createServer((req, res) => {
     }
 
     var mdBrowseSelected = null;
+    var mdBrowseRootPath = null;
 
     function mdBrowse() {
-      var startPath = '~';
-      if (mdState.currentPath) {
-        var lastSlash = mdState.currentPath.lastIndexOf('/');
-        startPath = lastSlash > 0 ? mdState.currentPath.substring(0, lastSlash) : '~';
-      }
+      // Start at home or last browsed dir; NOT the current file's dir
+      mdBrowseRootPath = localStorage.getItem('mc-md-last-browse-dir') || '~';
       mdBrowseSelected = null;
       var modal = document.getElementById('mdBrowseModal');
       var hiddenChk = document.getElementById('mdBrowseShowHidden');
@@ -2469,30 +2474,38 @@ const server = http.createServer((req, res) => {
       if (openBtn) openBtn.disabled = true;
       document.getElementById('mdBrowsePath').textContent = '';
       modal.style.display = 'flex';
+      mdBrowseInitTree();
+    }
 
+    function mdBrowseInitTree() {
       var treeEl = document.getElementById('mdBrowseTree');
-      // Destroy existing tree if any
       if ($(treeEl).data('jstree')) { $(treeEl).jstree('destroy'); }
 
       $(treeEl).jstree({
         core: {
           themes: { name: 'default-dark', dots: true, icons: true },
           data: function(node, cb) {
-            var dir = (node.id === '#') ? startPath : node.id;
+            var dir = (node.id === '#') ? mdBrowseRootPath : node.id;
             var url = '/api/files/list?path=' + encodeURIComponent(dir) + (mdState.showHidden ? '&showHidden=1' : '');
             fetch(url)
               .then(function(r) { return r.json(); })
               .then(function(data) {
-                document.getElementById('mdBrowsePath').textContent = data.path || '';
+                if (node.id === '#') {
+                  // Update root path to resolved server path so Up works correctly
+                  mdBrowseRootPath = data.path;
+                  document.getElementById('mdBrowsePath').textContent = data.path || '';
+                  var upBtn = document.getElementById('mdBrowseGoUp');
+                  if (upBtn) upBtn.disabled = (data.path === '/');
+                }
                 var nodes = data.items.map(function(item) {
                   var fullPath = data.path + '/' + item.name;
-                  var isMd = !item.isDir && item.name.endsWith('.md');
+                  var isMd = !item.isDir && /\.md$/i.test(item.name);
                   return {
                     id: fullPath,
                     text: item.name,
                     children: item.isDir,
                     icon: item.isDir ? 'jstree-folder' : 'jstree-file',
-                    li_attr: item.isDir ? {} : (isMd ? {} : { 'class': 'md-node-other' })
+                    a_attr: item.isDir ? {} : (isMd ? { 'class': 'md-node-md' } : { 'class': 'md-node-other' })
                   };
                 });
                 cb(nodes);
@@ -2502,35 +2515,39 @@ const server = http.createServer((req, res) => {
         }
       }).on('select_node.jstree', function(e, data) {
         var node = data.node;
-        if (!node.children || node.children.length === 0) {
-          // It's a file (or an empty dir — check original)
-          var isDir = node.original && node.original.children === true;
-          if (!isDir) {
-            mdBrowseSelected = node.id;
-            var openBtn = document.getElementById('mdBrowseOpenBtn');
-            if (openBtn) openBtn.disabled = !node.id.endsWith('.md');
-          }
+        var isDir = node.original && node.original.children === true;
+        if (!isDir) {
+          mdBrowseSelected = node.id;
+          var openBtn = document.getElementById('mdBrowseOpenBtn');
+          if (openBtn) openBtn.disabled = !/\.md$/i.test(node.id);
         }
       }).on('dblclick.jstree', function(e) {
-        // Double-click on .md file: open immediately
-        if (mdBrowseSelected && mdBrowseSelected.endsWith('.md')) {
+        if (mdBrowseSelected && /\.md$/i.test(mdBrowseSelected)) {
           mdBrowseConfirm();
         }
       });
     }
 
+    function mdBrowseGoUp() {
+      if (!mdBrowseRootPath || mdBrowseRootPath === '/') return;
+      var lastSlash = mdBrowseRootPath.lastIndexOf('/');
+      mdBrowseRootPath = lastSlash > 0 ? mdBrowseRootPath.substring(0, lastSlash) : '/';
+      mdBrowseSelected = null;
+      var openBtn = document.getElementById('mdBrowseOpenBtn');
+      if (openBtn) openBtn.disabled = true;
+      mdBrowseInitTree();
+    }
+
     function mdBrowseToggleHidden(val) {
       mdState.showHidden = val;
       localStorage.setItem('mc-md-show-hidden', val ? 'true' : 'false');
-      // Refresh tree
-      var treeEl = document.getElementById('mdBrowseTree');
-      if ($(treeEl).data('jstree')) {
-        $(treeEl).jstree('refresh');
-      }
+      mdBrowseInitTree();
     }
 
     function mdBrowseConfirm() {
-      if (!mdBrowseSelected || !mdBrowseSelected.endsWith('.md')) return;
+      if (!mdBrowseSelected || !/\.md$/i.test(mdBrowseSelected)) return;
+      var dir = mdBrowseSelected.substring(0, mdBrowseSelected.lastIndexOf('/'));
+      localStorage.setItem('mc-md-last-browse-dir', dir);
       var pathInput = document.getElementById('mdPathInput');
       if (pathInput) pathInput.value = mdBrowseSelected;
       mdBrowseClose();
