@@ -760,7 +760,7 @@ const server = http.createServer((req, res) => {
       cursor: pointer; user-select: none; white-space: nowrap;
     }
     .md-edit-toggle.visible { display: flex; }
-    .md-toggle-lbl { font-size: 0.78rem; color: #64748b; font-weight: 500; transition: color 0.2s; }
+    .md-toggle-lbl { font-size: 0.78rem; color: #64748b; font-weight: 600; transition: color 0.2s; }
     .md-toggle-track {
       width: 38px; height: 20px; border-radius: 10px; flex-shrink: 0;
       background: rgba(255,255,255,0.08); border: 1.5px solid #4b5563;
@@ -772,10 +772,10 @@ const server = http.createServer((req, res) => {
     }
     .md-edit-toggle.editing .md-toggle-track { background: rgba(59,130,246,0.55); border-color: rgba(59,130,246,0.75); }
     .md-edit-toggle.editing .md-toggle-thumb { transform: translateX(18px); background: #fff; }
-    .md-edit-toggle .md-toggle-lbl:first-child { color: #38bdf8; font-weight: 600; }
+    .md-edit-toggle .md-toggle-lbl:first-child { color: #38bdf8; }
     .md-edit-toggle .md-toggle-lbl:last-child  { color: #64748b; }
-    .md-edit-toggle.editing .md-toggle-lbl:first-child { color: #64748b; font-weight: 400; }
-    .md-edit-toggle.editing .md-toggle-lbl:last-child  { color: #38bdf8; font-weight: 600; }
+    .md-edit-toggle.editing .md-toggle-lbl:first-child { color: #64748b; }
+    .md-edit-toggle.editing .md-toggle-lbl:last-child  { color: #38bdf8; }
     /* Save flash */
     @keyframes md-save-flash { 0%,20% { color: #4ade80; } 100% { color: #94a3b8; } }
     .md-save-flashing { animation: md-save-flash 3s ease forwards; }
@@ -805,8 +805,8 @@ const server = http.createServer((req, res) => {
     #mdBrowseTree .jstree-default-dark .jstree-anchor { color: #94a3b8; font-size: 0.85rem; }
     #mdBrowseTree .jstree-default-dark .jstree-hovered { background: #1e293b; border-radius: 4px; }
     #mdBrowseTree .jstree-default-dark .jstree-clicked { background: #1e3a5f; border-radius: 4px; }
-    #mdBrowseTree a.md-node-md { color: #e2e8f0 !important; }
-    #mdBrowseTree a.md-node-md.jstree-clicked { color: #60a5fa !important; }
+    #mdBrowseTree a.md-node-md { color: #7dd3fc !important; }
+    #mdBrowseTree a.md-node-md.jstree-clicked { color: #bfdbfe !important; }
     body.light .md-browse-dialog { background: #f8fafc; border-color: #cbd5e1; }
     body.light .md-browse-header, body.light .md-browse-footer { border-color: #e2e8f0; }
     body.light .md-browse-title { color: #0f172a; }
@@ -2566,12 +2566,15 @@ const server = http.createServer((req, res) => {
       var list = document.getElementById('mdPinList');
       if (!list) return;
       list.innerHTML = '';
-      mdState.pinnedFiles.forEach(function(p, i) {
+      var sorted = mdState.pinnedFiles.slice().sort(function(a, b) {
+        return a.split('/').pop().localeCompare(b.split('/').pop(), undefined, { sensitivity: 'base' });
+      });
+      sorted.forEach(function(p) {
         var li = document.createElement('li');
         li.className = 'md-pin-item';
         li.title = p;
         li.textContent = p.split('/').pop();
-        li.dataset.index = i;
+        li.dataset.path = p;
         li.onclick = function() {
           var pathInput = document.getElementById('mdPathInput');
           if (pathInput) pathInput.value = p;
@@ -2597,8 +2600,8 @@ const server = http.createServer((req, res) => {
       if (!list) return;
       var active = list.querySelector('.md-pin-item.active');
       if (!active) return;
-      var idx = parseInt(active.dataset.index, 10);
-      if (!isNaN(idx)) {
+      var idx = mdState.pinnedFiles.indexOf(active.dataset.path);
+      if (idx !== -1) {
         mdState.pinnedFiles.splice(idx, 1);
         localStorage.setItem('mc-md-pinned', JSON.stringify(mdState.pinnedFiles));
         mdRenderPins();
