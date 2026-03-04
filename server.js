@@ -805,8 +805,8 @@ const server = http.createServer((req, res) => {
     #mdBrowseTree .jstree-default-dark .jstree-anchor { color: #94a3b8; font-size: 0.85rem; }
     #mdBrowseTree .jstree-default-dark .jstree-hovered { background: #1e293b; border-radius: 4px; }
     #mdBrowseTree .jstree-default-dark .jstree-clicked { background: #1e3a5f; border-radius: 4px; }
-    #mdBrowseTree a.md-node-md { color: #7dd3fc !important; }
-    #mdBrowseTree a.md-node-md.jstree-clicked { color: #bfdbfe !important; }
+    #mdBrowseTree a.md-node-md { color: #38bdf8 !important; }
+    #mdBrowseTree a.md-node-md.jstree-clicked { color: #7dd3fc !important; }
     body.light .md-browse-dialog { background: #f8fafc; border-color: #cbd5e1; }
     body.light .md-browse-header, body.light .md-browse-footer { border-color: #e2e8f0; }
     body.light .md-browse-title { color: #0f172a; }
@@ -1010,7 +1010,7 @@ const server = http.createServer((req, res) => {
       <div class="md-browse-dialog">
         <div class="md-browse-header">
           <span class="md-browse-title">Browse Files</span>
-          <button class="icon-btn" id="mdBrowseGoUp" onclick="mdBrowseGoUp()" title="Go to parent folder" style="font-size:1rem;">↑</button>
+          <button class="icon-btn" id="mdBrowseGoUp" onclick="mdBrowseGoUp()" title="Go to parent folder" style="font-size:1rem;">⬆</button>
           <span id="mdBrowsePath" class="md-browse-path"></span>
           <button class="icon-btn" onclick="mdBrowseClose()" title="Close" style="margin-left:auto;">✕</button>
         </div>
@@ -2516,6 +2516,9 @@ const server = http.createServer((req, res) => {
       }).on('select_node.jstree', function(e, data) {
         var node = data.node;
         var isDir = node.original && node.original.children === true;
+        // Update path display: show folder path for dirs, parent folder for files
+        var displayPath = isDir ? node.id : node.id.substring(0, node.id.lastIndexOf('/'));
+        document.getElementById('mdBrowsePath').textContent = displayPath;
         if (!isDir) {
           mdBrowseSelected = node.id;
           var openBtn = document.getElementById('mdBrowseOpenBtn');
@@ -2622,7 +2625,7 @@ const server = http.createServer((req, res) => {
       if (dir === 0) {
         mdState.zoom = 100;
       } else {
-        mdState.zoom = Math.min(200, Math.max(25, mdState.zoom + dir * 10));
+        mdState.zoom = Math.min(200, Math.max(20, mdState.zoom + dir * 10));
       }
       mdApplyZoom();
     }
