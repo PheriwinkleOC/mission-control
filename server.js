@@ -815,8 +815,8 @@ const server = http.createServer((req, res) => {
     body.light #mdBrowseTree .jstree-default-dark .jstree-anchor { color: #94a3b8; }
     body.light #mdBrowseTree .jstree-default-dark .jstree-hovered { background: #e2e8f0; }
     body.light #mdBrowseTree .jstree-default-dark .jstree-clicked { background: #dbeafe; }
-    body.light #mdBrowseTree a.md-node-md { color: #0f172a !important; }
-    body.light #mdBrowseTree a.md-node-md.jstree-clicked { color: #1d4ed8 !important; }
+    body.light #mdBrowseTree a.md-node-md { color: #38bdf8 !important; }
+    body.light #mdBrowseTree a.md-node-md.jstree-clicked { color: #7dd3fc !important; }
   </style>
 </head>
 <body>
