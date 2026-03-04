@@ -688,20 +688,28 @@ const server = http.createServer((req, res) => {
     }
     .md-sidebar-actions .btn { font-size: 0.75rem; padding: 0.3rem 0.6rem; }
     .md-editor-area { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+    .md-path-row {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.25rem 0.75rem;
+      background: rgba(0,0,0,0.2);
+      border-bottom: 1px solid rgba(59,130,246,0.12);
+      flex-shrink: 0;
+    }
+    body.light .md-path-row { background: rgba(0,0,0,0.04); border-bottom-color: rgba(29,78,216,0.12); }
     .md-toolbar {
       display: flex; align-items: center; gap: 0.4rem;
-      padding: 0.5rem 0.75rem;
+      padding: 0.35rem 0.75rem;
       background: rgba(0,0,0,0.2);
       border-bottom: 1px solid rgba(59,130,246,0.2);
       flex-shrink: 0; flex-wrap: wrap;
     }
     body.light .md-toolbar { background: rgba(0,0,0,0.04); border-bottom-color: rgba(29,78,216,0.2); }
     .md-path-input {
-      flex: 1; min-width: 150px;
+      flex: 1; min-width: 0;
       background: rgba(0,0,0,0.3);
       border: 1px solid rgba(59,130,246,0.3);
       border-radius: 5px; color: #e2e8f0;
-      padding: 0.3rem 0.6rem; font-size: 0.85rem; outline: none;
+      padding: 0.25rem 0.6rem; font-size: 0.82rem; outline: none;
       font-family: 'Menlo','Monaco','Courier New',monospace;
     }
     body.light .md-path-input { background: rgba(255,255,255,0.8); border-color: rgba(29,78,216,0.3); color: #1e293b; }
@@ -955,12 +963,13 @@ const server = http.createServer((req, res) => {
           </div>
         </div>
         <div class="md-editor-area">
-          <div class="md-toolbar">
+          <div class="md-path-row">
             <button class="icon-btn" id="mdSidebarToggleBtn" onclick="mdToggleSidebar()" title="Show sidebar" style="display:none;font-size:0.8rem;">▶</button>
             <input type="text" class="md-path-input" id="mdPathInput" placeholder="~/path/to/file.md" />
             <button class="btn" onclick="mdOpenFile()">Open</button>
             <button class="btn" onclick="mdBrowse()">Browse</button>
-            <div class="toolbar-sep" style="height:22px;background:rgba(59,130,246,0.25);width:1px;flex-shrink:0;"></div>
+          </div>
+          <div class="md-toolbar">
             <label class="md-edit-toggle" id="mdEditToggle" onclick="mdToggleEditable()" title="Toggle read-only / edit mode">
               <span class="md-toggle-lbl">Read Only</span>
               <span class="md-toggle-track"><span class="md-toggle-thumb"></span></span>
@@ -2593,13 +2602,14 @@ const server = http.createServer((req, res) => {
       if (dir === 0) {
         mdState.zoom = 100;
       } else {
-        mdState.zoom = Math.min(200, Math.max(50, mdState.zoom + dir * 10));
+        mdState.zoom = Math.min(200, Math.max(25, mdState.zoom + dir * 10));
       }
       mdApplyZoom();
     }
 
     function mdApplyZoom() {
-      var pct = mdState.zoom + '%';
+      // Use rem-based absolute size so sub-100% reliably shrinks text
+      var size = (0.875 * mdState.zoom / 100).toFixed(3) + 'rem';
       var style = document.getElementById('mdZoomStyle');
       if (!style) {
         style = document.createElement('style');
@@ -2609,7 +2619,7 @@ const server = http.createServer((req, res) => {
       style.textContent = '#mdEditorContainer .toastui-editor-contents,'
         + '#mdEditorContainer .ProseMirror,'
         + '#mdEditorContainer .md-raw-source {'
-        + ' font-size: ' + pct + ' !important; }';
+        + ' font-size: ' + size + ' !important; }';
       var zoomVal = document.getElementById('mdZoomVal');
       if (zoomVal) zoomVal.textContent = mdState.zoom + '%';
     }
