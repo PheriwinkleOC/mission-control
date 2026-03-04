@@ -744,6 +744,7 @@ const server = http.createServer((req, res) => {
     /* Toast UI Editor overrides */
     .toastui-editor-defaultUI { height: 100%; border: none !important; }
     body.light .toastui-editor-defaultUI-toolbar { background: #f1f5f9; border-bottom-color: #e2e8f0; }
+    .toastui-editor-mode-switch { display: none !important; }
     body.light .toastui-editor-contents p, body.light .toastui-editor-contents li { color: #1e293b; }
     /* Markdown editor raw source view */
     .md-raw-source {
