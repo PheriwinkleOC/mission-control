@@ -2383,10 +2383,19 @@ const server = http.createServer((req, res) => {
           document.getElementById('mdSaveBtn').style.display = 'none';
           mdApplyZoom();
           mdCreateViewer(data.content, mdState.viewMode);
+          mdSyncPinSelection();
         })
         .catch(function(e) {
           document.getElementById('mdStatusPath').textContent = 'Error: ' + e.message;
         });
+    }
+
+    function mdSyncPinSelection() {
+      var list = document.getElementById('mdPinList');
+      if (!list) return;
+      list.querySelectorAll('.md-pin-item').forEach(function(el) {
+        el.classList.toggle('active', el.dataset.path === mdState.currentPath);
+      });
     }
 
     function mdToggleEditable() {
