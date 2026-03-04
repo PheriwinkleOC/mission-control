@@ -159,6 +159,88 @@ const server = http.createServer((req, res) => {
     res.writeHead(404); res.end('Unknown command'); return;
   }
 
+  // --- File Read/Write/List API ---
+  if (req.url.startsWith('/api/files/')) {
+    const fileAction = (req.url.split('/')[3] || '').split('?')[0];
+
+    if (fileAction === 'read' && req.method === 'GET') {
+      const urlObj = new URL(req.url, 'http://localhost');
+      const rawPath = urlObj.searchParams.get('path') || '';
+      const resolvedPath = path.resolve(rawPath.replace(/^~/, os.homedir()));
+      fs_module.readFile(resolvedPath, 'utf8', function(err, content) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        if (err) {
+          res.end(JSON.stringify({ error: err.message }));
+        } else {
+          res.end(JSON.stringify({ path: resolvedPath, content: content }));
+        }
+      });
+      return;
+    }
+
+    if (fileAction === 'write' && req.method === 'POST') {
+      let body = '';
+      let size = 0;
+      const MAX_BODY = 10 * 1024 * 1024;
+      req.on('data', function(chunk) {
+        size += chunk.length;
+        if (size > MAX_BODY) { req.destroy(); return; }
+        body += chunk.toString();
+      });
+      req.on('end', function() {
+        let parsed;
+        try { parsed = JSON.parse(body); } catch(e) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid JSON' }));
+          return;
+        }
+        const rawPath = parsed.path || '';
+        const content = typeof parsed.content === 'string' ? parsed.content : '';
+        const resolvedPath = path.resolve(rawPath.replace(/^~/, os.homedir()));
+        if (!resolvedPath.endsWith('.md')) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Only .md files are allowed' }));
+          return;
+        }
+        fs_module.writeFile(resolvedPath, content, 'utf8', function(err) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          if (err) {
+            res.end(JSON.stringify({ error: err.message }));
+          } else {
+            res.end(JSON.stringify({ ok: true, path: resolvedPath }));
+          }
+        });
+      });
+      return;
+    }
+
+    if (fileAction === 'list' && req.method === 'GET') {
+      const urlObj = new URL(req.url, 'http://localhost');
+      const rawPath = urlObj.searchParams.get('path') || os.homedir();
+      const showHidden = urlObj.searchParams.get('showHidden') === '1';
+      const resolvedPath = path.resolve(rawPath.replace(/^~/, os.homedir()));
+      fs_module.readdir(resolvedPath, { withFileTypes: true }, function(err, entries) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        if (err) {
+          res.end(JSON.stringify({ error: err.message }));
+          return;
+        }
+        let items = entries.map(function(e) {
+          return { name: e.name, isDir: e.isDirectory() };
+        });
+        if (!showHidden) {
+          items = items.filter(function(i) { return !i.name.startsWith('.'); });
+        }
+        items.sort(function(a, b) {
+          if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
+          return a.name.localeCompare(b.name);
+        });
+        res.end(JSON.stringify({ path: resolvedPath, items: items }));
+      });
+      return;
+    }
+  }
+
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(`
 <!DOCTYPE html>
@@ -169,6 +251,12 @@ const server = http.createServer((req, res) => {
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-webgl@0.16.0/lib/xterm-addon-webgl.js"></script>
+  <link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/toastui-editor.min.css" />
+  <link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/theme/toastui-editor-dark.min.css" />
+  <script src="https://uicdn.toast.com/editor/3.2.2/toastui-editor-all.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jstree@3.3.17/dist/themes/default-dark/style.min.css" />
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jstree@3.3.17/dist/jstree.min.js"></script>
   <style>
     :root {
       --bg-dark: #000;
@@ -551,6 +639,168 @@ const server = http.createServer((req, res) => {
     }
     .status-dot.on  { background: #28c840; box-shadow: 0 0 4px #28c840; }
     .status-dot.off { background: #ff5f57; }
+
+    /* ── Markdown Editor Panel ───────────────────────── */
+    #main.md-editor-active { padding: 8px; overflow: hidden; }
+
+    .md-panel-layout {
+      display: flex; flex-direction: row; height: 100%; min-height: 0;
+    }
+    .md-sidebar {
+      width: 220px; min-width: 220px;
+      background: rgba(0,0,0,0.2);
+      border-right: 1px solid rgba(59,130,246,0.25);
+      display: flex; flex-direction: column;
+      transition: width 0.25s ease, min-width 0.25s ease, opacity 0.2s;
+      overflow: hidden; flex-shrink: 0;
+    }
+    body.light .md-sidebar { background: rgba(0,0,0,0.04); border-right-color: rgba(29,78,216,0.2); }
+    .md-sidebar.collapsed { width: 0; min-width: 0; opacity: 0; }
+    .md-sidebar-header {
+      display: flex; align-items: center;
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid rgba(59,130,246,0.2);
+      gap: 0.5rem; flex-shrink: 0;
+    }
+    .md-sidebar-title {
+      flex: 1; font-weight: 600; font-size: 0.85rem; white-space: nowrap;
+      color: #94a3b8; text-transform: uppercase; letter-spacing: 0.07em;
+    }
+    .md-pin-list { list-style: none; flex: 1; overflow-y: auto; padding: 0.25rem 0; }
+    .md-pin-item {
+      padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.82rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      user-select: none;
+    }
+    .md-pin-item:hover {
+      background: var(--menu-hover-dark);
+      box-shadow: var(--menu-hover-dark-shadow);
+    }
+    body.light .md-pin-item:hover { background: var(--bg-hover-light); box-shadow: none; }
+    .md-pin-item.active {
+      background: var(--menu-active-dark);
+      box-shadow: var(--menu-active-dark-shadow);
+    }
+    body.light .md-pin-item.active { background: rgba(29,78,216,0.2); box-shadow: none; }
+    .md-sidebar-actions {
+      display: flex; gap: 0.5rem; padding: 0.5rem 0.75rem;
+      border-top: 1px solid rgba(59,130,246,0.2); flex-shrink: 0;
+    }
+    .md-sidebar-actions .btn { font-size: 0.75rem; padding: 0.3rem 0.6rem; }
+    .md-editor-area { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+    .md-toolbar {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.5rem 0.75rem;
+      background: rgba(0,0,0,0.2);
+      border-bottom: 1px solid rgba(59,130,246,0.2);
+      flex-shrink: 0; flex-wrap: wrap;
+    }
+    body.light .md-toolbar { background: rgba(0,0,0,0.04); border-bottom-color: rgba(29,78,216,0.2); }
+    .md-path-input {
+      flex: 1; min-width: 150px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(59,130,246,0.3);
+      border-radius: 5px; color: #e2e8f0;
+      padding: 0.3rem 0.6rem; font-size: 0.85rem; outline: none;
+      font-family: 'Menlo','Monaco','Courier New',monospace;
+    }
+    body.light .md-path-input { background: rgba(255,255,255,0.8); border-color: rgba(29,78,216,0.3); color: #1e293b; }
+    .md-path-input:focus { border-color: rgba(59,130,246,0.6); }
+    .md-hidden-label {
+      font-size: 0.78rem; color: #94a3b8;
+      display: flex; align-items: center; gap: 0.3rem;
+      cursor: pointer; white-space: nowrap;
+    }
+    .md-zoom-ctrl {
+      display: flex; align-items: center;
+      background: rgba(0,0,0,0.2); border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 5px; overflow: hidden;
+    }
+    .md-editor-container { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+    .md-both-layout { display: flex; height: 100%; }
+    .md-both-editor, .md-both-viewer { flex: 1; min-width: 0; height: 100%; overflow: auto; }
+    .md-both-editor { border-right: 1px solid rgba(59,130,246,0.2); }
+    .md-statusbar {
+      display: flex; align-items: center; padding: 3px 12px;
+      background: rgba(0,0,0,0.3);
+      border-top: 1px solid rgba(59,130,246,0.15);
+      font-size: 0.72rem; font-family: 'Menlo','Monaco',monospace;
+      color: #94a3b8; flex-shrink: 0; gap: 8px;
+    }
+    body.light .md-statusbar { background: rgba(0,0,0,0.05); border-top-color: rgba(29,78,216,0.15); }
+    /* Toast UI Editor overrides */
+    .toastui-editor-defaultUI { height: 100%; border: none !important; }
+    body.light .toastui-editor-defaultUI-toolbar { background: #f1f5f9; border-bottom-color: #e2e8f0; }
+    body.light .toastui-editor-contents p, body.light .toastui-editor-contents li { color: #1e293b; }
+    /* Markdown editor raw source view */
+    .md-raw-source {
+      height: 100%; overflow: auto; margin: 0; padding: 1rem 1.25rem;
+      font-family: 'Menlo','Monaco','Courier New',monospace;
+      font-size: 0.88em; line-height: 1.6;
+      color: #94a3b8; white-space: pre-wrap; word-break: break-word;
+      background: transparent;
+    }
+    body.light .md-raw-source { color: #475569; }
+    /* Edit/Read-only toggle switch */
+    .md-edit-toggle {
+      display: none; align-items: center; gap: 0.45rem;
+      cursor: pointer; user-select: none; white-space: nowrap;
+    }
+    .md-edit-toggle.visible { display: flex; }
+    .md-toggle-lbl { font-size: 0.78rem; color: #64748b; font-weight: 500; transition: color 0.2s; }
+    .md-toggle-track {
+      width: 38px; height: 20px; border-radius: 10px; flex-shrink: 0;
+      background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.5);
+      position: relative; transition: background 0.2s, border-color 0.2s;
+    }
+    .md-toggle-thumb {
+      position: absolute; top: 3px; left: 3px; width: 12px; height: 12px;
+      border-radius: 50%; background: #64748b; transition: transform 0.2s, background 0.2s;
+    }
+    .md-edit-toggle.editing .md-toggle-track { background: rgba(59,130,246,0.55); border-color: rgba(59,130,246,0.75); }
+    .md-edit-toggle.editing .md-toggle-thumb { transform: translateX(18px); background: #fff; }
+    .md-edit-toggle .md-toggle-lbl:first-child { color: #38bdf8; font-weight: 600; }
+    .md-edit-toggle .md-toggle-lbl:last-child  { color: #64748b; }
+    .md-edit-toggle.editing .md-toggle-lbl:first-child { color: #64748b; font-weight: 400; }
+    .md-edit-toggle.editing .md-toggle-lbl:last-child  { color: #38bdf8; font-weight: 600; }
+    /* Save flash */
+    @keyframes md-save-flash { 0%,20% { color: #4ade80; } 100% { color: #94a3b8; } }
+    .md-save-flashing { animation: md-save-flash 3s ease forwards; }
+    /* ── jstree Browse Modal ── */
+    .md-browse-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center;
+    }
+    .md-browse-dialog {
+      background: #0f172a; border: 1px solid #334155; border-radius: 10px;
+      width: 520px; max-width: 95vw; height: 520px; max-height: 90vh;
+      display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    }
+    .md-browse-header {
+      display: flex; align-items: center; gap: 8px; padding: 12px 16px;
+      border-bottom: 1px solid #1e293b; flex-shrink: 0;
+    }
+    .md-browse-title { font-weight: 700; font-size: 0.95rem; color: #e2e8f0; }
+    .md-browse-path { font-family: monospace; font-size: 0.75rem; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .md-browse-body { flex: 1; overflow: auto; padding: 8px; }
+    .md-browse-footer {
+      display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+      border-top: 1px solid #1e293b; flex-shrink: 0;
+    }
+    /* jstree dark overrides */
+    #mdBrowseTree .jstree-default-dark { background: transparent; }
+    #mdBrowseTree .jstree-default-dark .jstree-anchor { color: #e2e8f0; font-size: 0.85rem; }
+    #mdBrowseTree .jstree-default-dark .jstree-hovered { background: #1e293b; border-radius: 4px; }
+    #mdBrowseTree .jstree-default-dark .jstree-clicked { background: #1e3a5f; border-radius: 4px; color: #60a5fa; }
+    #mdBrowseTree .md-node-other > a { color: #475569 !important; }
+    #mdBrowseTree .md-node-other > a.jstree-clicked { color: #94a3b8 !important; }
+    body.light .md-browse-dialog { background: #f8fafc; border-color: #cbd5e1; }
+    body.light .md-browse-header, body.light .md-browse-footer { border-color: #e2e8f0; }
+    body.light .md-browse-title { color: #0f172a; }
+    body.light #mdBrowseTree .jstree-default-dark .jstree-anchor { color: #0f172a; }
+    body.light #mdBrowseTree .jstree-default-dark .jstree-hovered { background: #e2e8f0; }
+    body.light #mdBrowseTree .jstree-default-dark .jstree-clicked { background: #dbeafe; color: #1d4ed8; }
+    body.light #mdBrowseTree .md-node-other > a { color: #94a3b8 !important; }
   </style>
 </head>
 <body>
@@ -570,6 +820,7 @@ const server = http.createServer((req, res) => {
         <li class="menu-item" data-panel="litellm"><span class="icon">🔄</span><span class="label">LiteLLM Proxy</span></li>
         <li class="menu-item" data-panel="projects"><span class="icon">📁</span><span class="label">Projects</span></li>
         <li class="menu-item" data-panel="mc-docs"><span class="icon">📚</span><span class="label">Docs</span></li>
+        <li class="menu-item" data-panel="markdown-editor"><span class="icon">📝</span><span class="label">Markdown Editor</span></li>
         <li class="menu-item" data-panel="xterm1"><span class="icon" style="font-family:monospace;font-weight:700;">&gt;_<span style="position:absolute;top:-3px;left:20px;font-size:0.52em;font-weight:700;line-height:1;">1</span></span><span class="label">Terminal 1</span></li>
         <li class="menu-item" data-panel="xterm2"><span class="icon" style="font-family:monospace;font-weight:700;">&gt;_<span style="position:absolute;top:-3px;left:20px;font-size:0.52em;font-weight:700;line-height:1;">2</span></span><span class="label">Terminal 2</span></li>
         <li class="menu-item" data-panel="xterm3"><span class="icon" style="font-family:monospace;font-weight:700;">&gt;_<span style="position:absolute;top:-3px;left:20px;font-size:0.52em;font-weight:700;line-height:1;">3</span></span><span class="label">Terminal 3</span></li>
@@ -689,6 +940,78 @@ const server = http.createServer((req, res) => {
 
     <section id="projects" class="panel"><h1>📁 Projects</h1><p>Overview.</p></section>
     <section id="mc-docs"   class="panel"><h1>📚 Docs</h1><p>Coming.</p></section>
+
+    <section id="markdown-editor" class="panel">
+      <div class="md-panel-layout">
+        <div class="md-sidebar" id="mdSidebar">
+          <div class="md-sidebar-header">
+            <span class="md-sidebar-title">Pinned Docs</span>
+            <button class="icon-btn" onclick="mdToggleSidebar()" title="Collapse sidebar" style="font-size:0.8rem;">◀</button>
+          </div>
+          <ul class="md-pin-list" id="mdPinList"></ul>
+          <div class="md-sidebar-actions">
+            <button class="btn" onclick="mdPinCurrentFile()">Pin Current</button>
+            <button class="btn danger" onclick="mdUnpinSelected()">Unpin</button>
+          </div>
+        </div>
+        <div class="md-editor-area">
+          <div class="md-toolbar">
+            <button class="icon-btn" id="mdSidebarToggleBtn" onclick="mdToggleSidebar()" title="Show sidebar" style="display:none;font-size:0.8rem;">▶</button>
+            <input type="text" class="md-path-input" id="mdPathInput" placeholder="~/path/to/file.md" />
+            <button class="btn" onclick="mdOpenFile()">Open</button>
+            <button class="btn" onclick="mdBrowse()">Browse</button>
+            <div class="toolbar-sep" style="height:22px;background:rgba(59,130,246,0.25);width:1px;flex-shrink:0;"></div>
+            <label class="md-edit-toggle" id="mdEditToggle" onclick="mdToggleEditable()" title="Toggle read-only / edit mode">
+              <span class="md-toggle-lbl">Read Only</span>
+              <span class="md-toggle-track"><span class="md-toggle-thumb"></span></span>
+              <span class="md-toggle-lbl">Edit</span>
+            </label>
+            <button class="btn success" id="mdSaveBtn" onclick="mdSaveFile()" style="display:none;">Save</button>
+            <div class="toolbar-sep" style="height:22px;background:rgba(59,130,246,0.25);width:1px;flex-shrink:0;"></div>
+            <div class="tab-nav">
+              <button class="tab-btn active" id="mdTabMarkdown" onclick="mdSwitchView(event,'markdown')">Markdown</button>
+              <button class="tab-btn" id="mdTabWysiwyg" onclick="mdSwitchView(event,'wysiwyg')">WYSIWYG</button>
+              <button class="tab-btn" id="mdTabBoth" onclick="mdSwitchView(event,'both')">Both</button>
+            </div>
+            <div style="flex:1;"></div>
+            <div class="md-zoom-ctrl">
+              <button class="fs-btn" onclick="mdZoom(-1)">&#8722;</button>
+              <span class="fs-val" id="mdZoomVal">100%</span>
+              <button class="fs-btn" onclick="mdZoom(1)">+</button>
+              <button class="fs-btn" onclick="mdZoom(0)" title="Reset zoom" style="font-size:0.8rem;">&#8634;</button>
+            </div>
+          </div>
+          <div class="md-editor-container" id="mdEditorContainer"></div>
+          <div class="md-statusbar">
+            <span id="mdStatusPath" style="color:#94a3b8;">No file loaded</span>
+            <span id="mdStatusSaved" style="margin-left:auto;color:#94a3b8;"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- jstree file browser modal -->
+    <div id="mdBrowseModal" style="display:none;" class="md-browse-overlay">
+      <div class="md-browse-dialog">
+        <div class="md-browse-header">
+          <span class="md-browse-title">Browse Files</span>
+          <span id="mdBrowsePath" class="md-browse-path"></span>
+          <button class="icon-btn" onclick="mdBrowseClose()" title="Close" style="margin-left:auto;">✕</button>
+        </div>
+        <div class="md-browse-body">
+          <div id="mdBrowseTree"></div>
+        </div>
+        <div class="md-browse-footer">
+          <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#94a3b8;cursor:pointer;">
+            <input type="checkbox" id="mdBrowseShowHidden" onchange="mdBrowseToggleHidden(this.checked)" />
+            Show hidden files
+          </label>
+          <span style="flex:1;"></span>
+          <button class="btn" id="mdBrowseOpenBtn" disabled onclick="mdBrowseConfirm()">Open</button>
+          <button class="btn" onclick="mdBrowseClose()">Cancel</button>
+        </div>
+      </div>
+    </div>
 
     <section id="version-history" class="panel">
       <div class="dashboard-grid">
@@ -1049,6 +1372,15 @@ const server = http.createServer((req, res) => {
       var btn = document.getElementById('themeToggleBtn');
       btn.querySelector('.icon').textContent  = isLight ? '☀️' : '🌙';
       btn.querySelector('.label').textContent = isLight ? 'Switch to Dark' : 'Switch to Light';
+      /* Update markdown editor theme if a file is loaded */
+      if (mdState && mdState.currentPath) {
+        var mdContent = mdState.editor && mdState.editor.getMarkdown ? mdState.editor.getMarkdown() : mdState.originalContent;
+        if (mdState.editable) {
+          mdCreateEditor(mdContent, mdState.viewMode === 'wysiwyg' ? 'wysiwyg' : mdState.viewMode === 'both' ? 'both' : 'markdown');
+        } else {
+          mdCreateViewer(mdContent, mdState.viewMode);
+        }
+      }
     }
 
     function toggleSidebar() {
@@ -1735,10 +2067,13 @@ const server = http.createServer((req, res) => {
       var item = e.target.closest('.menu-item');
       if (!item) return;
 
-      /* Remove terminal-active when leaving any terminal panel */
+      /* Remove terminal-active / md-editor-active when leaving those panels */
       var prevPanel = document.querySelector('.panel.active');
       if (prevPanel && prevPanel.classList.contains('term-panel')) {
         document.getElementById('main').classList.remove('terminal-active');
+      }
+      if (prevPanel && prevPanel.id === 'markdown-editor') {
+        document.getElementById('main').classList.remove('md-editor-active');
       }
 
       document.querySelectorAll('.menu-item.active').forEach(function(i) { i.classList.remove('active'); });
@@ -1758,6 +2093,9 @@ const server = http.createServer((req, res) => {
           if (panel) panel.classList.add('active');
           initXterm(termNum);
           return;
+        }
+        if (panelId === 'markdown-editor') {
+          document.getElementById('main').classList.add('md-editor-active');
         }
         var panel = document.getElementById(panelId);
         if (panel) panel.classList.add('active');
@@ -1894,6 +2232,411 @@ const server = http.createServer((req, res) => {
         if (panel.classList.contains('active') && !loaded) {
           loaded = true;
           refreshVersionHistory();
+        }
+      });
+      observer.observe(panel, { attributes: true, attributeFilter: ['class'] });
+    })();
+
+    /* ── Markdown Editor ───────────────────────────── */
+    var mdState = {
+      currentPath: '',
+      originalContent: '',
+      editable: false,
+      editor: null,
+      viewer: null,
+      pinnedFiles: [],
+      sidebarCollapsed: false,
+      zoom: 100,
+      viewMode: 'markdown',
+      showHidden: false,
+      autoSaveTimer: null
+    };
+
+    function mdGetTheme() {
+      return document.body.classList.contains('light') ? 'light' : 'dark';
+    }
+
+    function mdDestroyEditor() {
+      if (mdState.editor) { try { mdState.editor.destroy(); } catch(e) {} mdState.editor = null; }
+      if (mdState.viewer) { try { mdState.viewer.destroy(); } catch(e) {} mdState.viewer = null; }
+    }
+
+    function mdCreateViewer(content, mode) {
+      mdDestroyEditor();
+      var container = document.getElementById('mdEditorContainer');
+      if (!container) return;
+      var c = content || '';
+      if (mode === 'markdown') {
+        // Raw markdown source view
+        container.innerHTML = '<pre class="md-raw-source"></pre>';
+        container.querySelector('.md-raw-source').textContent = c;
+        mdState.editor = { getMarkdown: function() { return c; } };
+      } else if (mode === 'both') {
+        // Side-by-side: raw source left, rendered right
+        container.innerHTML = '<div class="md-both-layout">'
+          + '<div class="md-both-editor"><pre class="md-raw-source"></pre></div>'
+          + '<div class="md-both-viewer"><div id="mdViewerMount" style="height:100%;overflow:auto;"></div></div>'
+          + '</div>';
+        container.querySelector('.md-raw-source').textContent = c;
+        mdState.viewer = toastui.Editor.factory({
+          el: document.getElementById('mdViewerMount'),
+          viewer: true, initialValue: c, theme: mdGetTheme()
+        });
+        mdState.editor = { getMarkdown: function() { return c; } };
+      } else {
+        // Rendered viewer (wysiwyg / default)
+        container.innerHTML = '<div id="mdEditorMount" style="height:100%;overflow:auto;"></div>';
+        mdState.editor = toastui.Editor.factory({
+          el: document.getElementById('mdEditorMount'),
+          viewer: true, initialValue: c, theme: mdGetTheme()
+        });
+      }
+    }
+
+    function mdCreateEditor(content, mode) {
+      mdDestroyEditor();
+      var container = document.getElementById('mdEditorContainer');
+      if (!container) return;
+      if (mode === 'both') {
+        container.innerHTML = '<div class="md-both-layout">'
+          + '<div class="md-both-editor"><div id="mdEditorMount" style="height:100%;"></div></div>'
+          + '<div class="md-both-viewer"><div id="mdViewerMount" style="height:100%;overflow:auto;"></div></div>'
+          + '</div>';
+        var edMount = document.getElementById('mdEditorMount');
+        var vwMount = document.getElementById('mdViewerMount');
+        mdState.editor = new toastui.Editor({
+          el: edMount,
+          height: '100%',
+          initialEditType: 'markdown',
+          initialValue: content || '',
+          hideModeSwitch: true,
+          theme: mdGetTheme(),
+          events: {
+            change: function() {
+              if (mdState.viewer) {
+                mdState.viewer.setMarkdown(mdState.editor.getMarkdown());
+              }
+              mdScheduleAutoSave();
+            }
+          }
+        });
+        mdState.viewer = toastui.Editor.factory({
+          el: vwMount,
+          viewer: true,
+          initialValue: content || '',
+          theme: mdGetTheme()
+        });
+      } else {
+        container.innerHTML = '<div id="mdEditorMount" style="height:100%;"></div>';
+        var mount = document.getElementById('mdEditorMount');
+        mdState.editor = new toastui.Editor({
+          el: mount,
+          height: '100%',
+          initialEditType: mode || 'markdown',
+          initialValue: content || '',
+          hideModeSwitch: true,
+          theme: mdGetTheme(),
+          events: {
+            change: function() { mdScheduleAutoSave(); }
+          }
+        });
+      }
+    }
+
+    function mdOpenFile() {
+      var input = document.getElementById('mdPathInput');
+      var rawPath = (input ? input.value : '').trim();
+      if (!rawPath) return;
+      fetch('/api/files/read?path=' + encodeURIComponent(rawPath))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.error) {
+            document.getElementById('mdStatusPath').textContent = 'Error: ' + data.error;
+            return;
+          }
+          mdState.currentPath = data.path;
+          mdState.originalContent = data.content;
+          mdState.editable = false;
+          localStorage.setItem('mc-md-last-file', rawPath);
+          document.getElementById('mdStatusPath').textContent = data.path;
+          document.getElementById('mdStatusSaved').textContent = '';
+          var toggle = document.getElementById('mdEditToggle');
+          toggle.classList.remove('editing');
+          toggle.classList.add('visible');
+          document.getElementById('mdSaveBtn').style.display = 'none';
+          mdApplyZoom();
+          mdCreateViewer(data.content, mdState.viewMode);
+        })
+        .catch(function(e) {
+          document.getElementById('mdStatusPath').textContent = 'Error: ' + e.message;
+        });
+    }
+
+    function mdToggleEditable() {
+      if (!mdState.currentPath) return;
+      mdState.editable = !mdState.editable;
+      var content = mdState.editor && mdState.editor.getMarkdown ? mdState.editor.getMarkdown() : mdState.originalContent;
+      var toggle = document.getElementById('mdEditToggle');
+      var saveBtn = document.getElementById('mdSaveBtn');
+      toggle.classList.toggle('editing', mdState.editable);
+      if (mdState.editable) {
+        saveBtn.style.display = '';
+        mdCreateEditor(content, mdState.viewMode === 'wysiwyg' ? 'wysiwyg' : mdState.viewMode === 'both' ? 'both' : 'markdown');
+      } else {
+        saveBtn.style.display = 'none';
+        mdCreateViewer(content, mdState.viewMode);
+      }
+    }
+
+    function mdSwitchView(event, mode) {
+      mdState.viewMode = mode;
+      ['markdown', 'wysiwyg', 'both'].forEach(function(m) {
+        var id = 'mdTab' + m.charAt(0).toUpperCase() + m.slice(1);
+        var btn = document.getElementById(id);
+        if (btn) btn.classList.toggle('active', m === mode);
+      });
+      if (!mdState.currentPath) return;
+      var content = mdState.editor && mdState.editor.getMarkdown ? mdState.editor.getMarkdown() : mdState.originalContent;
+      if (mdState.editable) {
+        mdCreateEditor(content, mode === 'wysiwyg' ? 'wysiwyg' : mode === 'both' ? 'both' : 'markdown');
+      } else {
+        mdCreateViewer(content, mode);
+      }
+    }
+
+    function mdSaveFile() {
+      if (!mdState.currentPath || !mdState.editor) return;
+      var content = mdState.editor.getMarkdown();
+      fetch('/api/files/write', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: mdState.currentPath, content: content })
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var el = document.getElementById('mdStatusSaved');
+          if (data.error) {
+            el.textContent = 'Save error: ' + data.error;
+            el.style.color = '#f87171';
+          } else {
+            mdState.originalContent = content;
+            el.textContent = '✓ Saved at ' + new Date().toLocaleTimeString();
+            el.classList.remove('md-save-flashing');
+            void el.offsetWidth; // reflow to restart animation
+            el.classList.add('md-save-flashing');
+          }
+        })
+        .catch(function(e) {
+          var el = document.getElementById('mdStatusSaved');
+          el.textContent = 'Save error: ' + e.message;
+          el.style.color = '#f87171';
+        });
+    }
+
+    function mdScheduleAutoSave() {
+      if (!mdState.editable || !mdState.currentPath) return;
+      if (mdState.autoSaveTimer) clearTimeout(mdState.autoSaveTimer);
+      mdState.autoSaveTimer = setTimeout(function() {
+        if (mdState.editor && mdState.editor.getMarkdown) {
+          var content = mdState.editor.getMarkdown();
+          if (content !== mdState.originalContent) mdSaveFile();
+        }
+      }, 5000);
+    }
+
+    var mdBrowseSelected = null;
+
+    function mdBrowse() {
+      var startPath = '~';
+      if (mdState.currentPath) {
+        var lastSlash = mdState.currentPath.lastIndexOf('/');
+        startPath = lastSlash > 0 ? mdState.currentPath.substring(0, lastSlash) : '~';
+      }
+      mdBrowseSelected = null;
+      var modal = document.getElementById('mdBrowseModal');
+      var hiddenChk = document.getElementById('mdBrowseShowHidden');
+      var openBtn = document.getElementById('mdBrowseOpenBtn');
+      if (hiddenChk) hiddenChk.checked = mdState.showHidden;
+      if (openBtn) openBtn.disabled = true;
+      document.getElementById('mdBrowsePath').textContent = '';
+      modal.style.display = 'flex';
+
+      var treeEl = document.getElementById('mdBrowseTree');
+      // Destroy existing tree if any
+      if ($(treeEl).data('jstree')) { $(treeEl).jstree('destroy'); }
+
+      $(treeEl).jstree({
+        core: {
+          themes: { name: 'default-dark', dots: true, icons: true },
+          data: function(node, cb) {
+            var dir = (node.id === '#') ? startPath : node.id;
+            var url = '/api/files/list?path=' + encodeURIComponent(dir) + (mdState.showHidden ? '&showHidden=1' : '');
+            fetch(url)
+              .then(function(r) { return r.json(); })
+              .then(function(data) {
+                document.getElementById('mdBrowsePath').textContent = data.path || '';
+                var nodes = data.items.map(function(item) {
+                  var fullPath = data.path + '/' + item.name;
+                  var isMd = !item.isDir && item.name.endsWith('.md');
+                  return {
+                    id: fullPath,
+                    text: item.name,
+                    children: item.isDir,
+                    icon: item.isDir ? 'jstree-folder' : 'jstree-file',
+                    li_attr: item.isDir ? {} : (isMd ? {} : { 'class': 'md-node-other' })
+                  };
+                });
+                cb(nodes);
+              })
+              .catch(function(e) { cb([]); });
+          }
+        }
+      }).on('select_node.jstree', function(e, data) {
+        var node = data.node;
+        if (!node.children || node.children.length === 0) {
+          // It's a file (or an empty dir — check original)
+          var isDir = node.original && node.original.children === true;
+          if (!isDir) {
+            mdBrowseSelected = node.id;
+            var openBtn = document.getElementById('mdBrowseOpenBtn');
+            if (openBtn) openBtn.disabled = !node.id.endsWith('.md');
+          }
+        }
+      }).on('dblclick.jstree', function(e) {
+        // Double-click on .md file: open immediately
+        if (mdBrowseSelected && mdBrowseSelected.endsWith('.md')) {
+          mdBrowseConfirm();
+        }
+      });
+    }
+
+    function mdBrowseToggleHidden(val) {
+      mdState.showHidden = val;
+      localStorage.setItem('mc-md-show-hidden', val ? 'true' : 'false');
+      // Refresh tree
+      var treeEl = document.getElementById('mdBrowseTree');
+      if ($(treeEl).data('jstree')) {
+        $(treeEl).jstree('refresh');
+      }
+    }
+
+    function mdBrowseConfirm() {
+      if (!mdBrowseSelected || !mdBrowseSelected.endsWith('.md')) return;
+      var pathInput = document.getElementById('mdPathInput');
+      if (pathInput) pathInput.value = mdBrowseSelected;
+      mdBrowseClose();
+      mdOpenFile();
+    }
+
+    function mdBrowseClose() {
+      var modal = document.getElementById('mdBrowseModal');
+      modal.style.display = 'none';
+      var treeEl = document.getElementById('mdBrowseTree');
+      if ($(treeEl).data('jstree')) { $(treeEl).jstree('destroy'); }
+    }
+
+
+    function mdRenderPins() {
+      var list = document.getElementById('mdPinList');
+      if (!list) return;
+      list.innerHTML = '';
+      mdState.pinnedFiles.forEach(function(p, i) {
+        var li = document.createElement('li');
+        li.className = 'md-pin-item';
+        li.title = p;
+        li.textContent = p.split('/').pop();
+        li.dataset.index = i;
+        li.onclick = function() {
+          var pathInput = document.getElementById('mdPathInput');
+          if (pathInput) pathInput.value = p;
+          list.querySelectorAll('.md-pin-item').forEach(function(el) { el.classList.remove('active'); });
+          li.classList.add('active');
+          mdOpenFile();
+        };
+        list.appendChild(li);
+      });
+    }
+
+    function mdPinCurrentFile() {
+      if (!mdState.currentPath) return;
+      if (mdState.pinnedFiles.indexOf(mdState.currentPath) === -1) {
+        mdState.pinnedFiles.push(mdState.currentPath);
+        localStorage.setItem('mc-md-pinned', JSON.stringify(mdState.pinnedFiles));
+        mdRenderPins();
+      }
+    }
+
+    function mdUnpinSelected() {
+      var list = document.getElementById('mdPinList');
+      if (!list) return;
+      var active = list.querySelector('.md-pin-item.active');
+      if (!active) return;
+      var idx = parseInt(active.dataset.index, 10);
+      if (!isNaN(idx)) {
+        mdState.pinnedFiles.splice(idx, 1);
+        localStorage.setItem('mc-md-pinned', JSON.stringify(mdState.pinnedFiles));
+        mdRenderPins();
+      }
+    }
+
+    function mdToggleSidebar() {
+      var sidebar = document.getElementById('mdSidebar');
+      var toggleBtn = document.getElementById('mdSidebarToggleBtn');
+      if (!sidebar) return;
+      mdState.sidebarCollapsed = !mdState.sidebarCollapsed;
+      sidebar.classList.toggle('collapsed', mdState.sidebarCollapsed);
+      if (toggleBtn) toggleBtn.style.display = mdState.sidebarCollapsed ? '' : 'none';
+      localStorage.setItem('mc-md-sidebar-collapsed', mdState.sidebarCollapsed ? 'true' : 'false');
+    }
+
+    function mdZoom(dir) {
+      if (dir === 0) {
+        mdState.zoom = 100;
+      } else {
+        mdState.zoom = Math.min(200, Math.max(50, mdState.zoom + dir * 10));
+      }
+      mdApplyZoom();
+    }
+
+    function mdApplyZoom() {
+      var pct = mdState.zoom + '%';
+      var style = document.getElementById('mdZoomStyle');
+      if (!style) {
+        style = document.createElement('style');
+        style.id = 'mdZoomStyle';
+        document.head.appendChild(style);
+      }
+      style.textContent = '#mdEditorContainer .toastui-editor-contents,'
+        + '#mdEditorContainer .ProseMirror,'
+        + '#mdEditorContainer .md-raw-source {'
+        + ' font-size: ' + pct + ' !important; }';
+      var zoomVal = document.getElementById('mdZoomVal');
+      if (zoomVal) zoomVal.textContent = mdState.zoom + '%';
+    }
+
+    // Init: activate on first panel show (MutationObserver pattern)
+    (function() {
+      var panel = document.getElementById('markdown-editor');
+      if (!panel) return;
+      var initialized = false;
+      var observer = new MutationObserver(function() {
+        if (!panel.classList.contains('active') || initialized) return;
+        initialized = true;
+        try { mdState.pinnedFiles = JSON.parse(localStorage.getItem('mc-md-pinned') || '[]'); } catch(e) {}
+        mdState.showHidden = localStorage.getItem('mc-md-show-hidden') === 'true';
+        mdState.sidebarCollapsed = localStorage.getItem('mc-md-sidebar-collapsed') === 'true';
+        if (mdState.sidebarCollapsed) {
+          var sidebar = document.getElementById('mdSidebar');
+          var toggleBtn = document.getElementById('mdSidebarToggleBtn');
+          if (sidebar) sidebar.classList.add('collapsed');
+          if (toggleBtn) toggleBtn.style.display = '';
+        }
+        mdRenderPins();
+        var lastFile = localStorage.getItem('mc-md-last-file');
+        if (lastFile) {
+          var pathInput = document.getElementById('mdPathInput');
+          if (pathInput) pathInput.value = lastFile;
+          mdOpenFile();
         }
       });
       observer.observe(panel, { attributes: true, attributeFilter: ['class'] });
